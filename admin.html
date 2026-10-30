@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin - Snelle Score Invoer</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f4f6f8;
+        color: #333;
+      }
+      h1,
+      h2 {
+        margin-top: 0;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: #fff;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .flex-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+      }
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .input-group label {
+        font-size: 12px;
+        font-weight: bold;
+      }
+      input,
+      select {
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 9px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      .btn-danger {
+        background: #dc3545;
+      }
+      .btn-danger:hover {
+        background: #bd2130;
+      }
+      .btn-success {
+        background: #28a745;
+      }
+      .btn-success:hover {
+        background: #218838;
+      }
+      .quick-status {
+        font-size: 14px;
+        font-weight: bold;
+        color: #28a745;
+        align-self: center;
+        margin-left: 8px;
+      }
+      #login-overlay {
+        position: fixed;
+        inset: 0;
+        background: #f4f6f8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .login-box {
+        background: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        text-align: center;
+        width: 280px;
+      }
+      .login-box input {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 12px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .login-box button {
+        width: 100%;
+      }
+      .team-preview {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+        font-size: 12px;
+        max-height: 250px;
+        overflow-y: auto;
+        padding: 8px;
+        border: 1px solid #eee;
+        border-radius: 4px;
+      }
+      .team-preview-item {
+        background: #f8f9fa;
+        padding: 6px;
+        border-radius: 3px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login-overlay">
+      <div class="login-box">
+        <h3 style="margin-top: 0">Admin Toegang</h3>
+        <input type="password" id="pass-input" placeholder="Wachtwoord" />
+        <button onclick="checkPass()">Inloggen</button>
+        <p
+          id="pass-err"
+          style="color: red; font-size: 12px; margin: 8px 0 0; display: none"
+        >
+          Verkeerd wachtwoord!
+        </p>
+      </div>
+    </div>
+
+    <h1>Quiz Admin Panel (Cloud Sync)</h1>
+
+    <div class="card" style="border-left: 5px solid #ffc107">
+      <h2>Juiste Antwoord Schiftingsvraag (Tie-breaker)</h2>
+      <div class="flex-row">
+        <div class="input-group">
+          <label for="shift_target_input">Exact Juiste Antwoord</label>
+          <input
+            type="number"
+            id="shift_target_input"
+            step="any"
+            placeholder="bv. 3200"
+            style="width: 140px"
+          />
+        </div>
+        <button class="btn-success" onclick="saveShiftTarget()">
+          Schiftingsantwoord Opslaan
+        </button>
+        <span class="quick-status" id="shift_target_status"></span>
+      </div>
+    </div>
+
+    <div class="card" style="border-left: 5px solid #28a745">
+      <h2>Snelle Invoer (Enter = Opslaan & Sync naar Cloud)</h2>
+      <div class="flex-row">
+        <div class="input-group">
+          <label for="quick_type">Type Invoer</label>
+          <select id="quick_type" onchange="handleTypeChange()">
+            <option value="round">Rondescore</option>
+            <option value="shift">Gegokte Schifting</option>
+          </select>
+        </div>
+        <div class="input-group" id="round_select_container">
+          <label for="quick_round">Ronde</label>
+          <select id="quick_round"></select>
+        </div>
+        <div class="input-group">
+          <label for="quick_nr">Team Nr (#)</label>
+          <input
+            type="number"
+            id="quick_nr"
+            min="1"
+            placeholder="bv. 1"
+            style="width: 85px"
+          />
+        </div>
+        <div class="input-group">
+          <label for="quick_score" id="label_score">Score</label>
+          <input
+            type="number"
+            id="quick_score"
+            step="0.5"
+            placeholder="bv. 8.5"
+            style="width: 100px"
+          />
+        </div>
+        <button onclick="submitQuickScore()">Opslaan (Enter)</button>
+        <span class="quick-status" id="quick_status"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        "
+      >
+        <h2 style="margin: 0">Overzicht Teamnummers (#)</h2>
+        <button class="btn-danger" onclick="resetToDefaults()">
+          Upload Originele Data naar Cloud
+        </button>
+      </div>
+      <div class="team-preview" id="teamList"></div>
+    </div>
+
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyDlhxm2-9R7111muITqr6-m9AAytIL78B4",
+        authDomain: "quizttcz.firebaseapp.com",
+        databaseURL:
+          "https://quizttcz-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "quizttcz",
+        storageBucket: "quizttcz.firebasestorage.app",
+        messagingSenderId: "682195896202",
+        appId: "1:682195896202:web:e6074599695f1f4516ea73",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      const defaultRounds = [
+        "Autos",
+        "Dieren",
+        "T1",
+        "Chemie",
+        "Ketting",
+        "T2",
+        "Bier",
+        "Kledij",
+        "T3",
+        "Italië",
+        "Vrouwen",
+        "T4",
+      ];
+
+      const defaultTeams = [
+        {
+          id: 1,
+          name: "Dirkbooizzz",
+          scores: [9, 7, 14, 7, 8, 9, 7, 8, 3, 7, 7, 19],
+          shift: 3200,
+        },
+        {
+          id: 2,
+          name: "Kenginjukstamegat",
+          scores: [5, 5, 18, 7, 10, 14, 7, 8, 7, 10, 7, 17],
+          shift: 3500,
+        },
+        {
+          id: 3,
+          name: "Merry Quizmas",
+          scores: [5, 7, 19, 7, 10, 17, 7, 8, 9, 9, 10, 19],
+          shift: 428.9,
+        },
+        {
+          id: 4,
+          name: "De Elckerlyckskes",
+          scores: [5, 6, 14, 8, 9, 13, 7, 4, 7, 7, 3.5, 14],
+          shift: 6400,
+        },
+        {
+          id: 5,
+          name: "Den Oranjen Noend",
+          scores: [6, 9, 19, 8, 10, 19, 8, 8, 9, 9, 8.5, 17],
+          shift: 2969,
+        },
+        {
+          id: 6,
+          name: "Arpv",
+          scores: [3, 5, 16, 4, 5, 12, 5, 5, 5, 7, 6, 15],
+          shift: 335,
+        },
+        {
+          id: 7,
+          name: "TTC Eernegem",
+          scores: [7, 7, 19, 9, 10, 18, 10, 7, 9, 10, 9.5, 19],
+          shift: 3144,
+        },
+        {
+          id: 8,
+          name: "Butter bie de vis",
+          scores: [6, 6, 16, 7, 8, 15, 8, 9, 7, 9, 8, 19],
+          shift: 3216,
+        },
+        {
+          id: 9,
+          name: "KoeKedozeklan",
+          scores: [8, 8, 20, 9, 10, 17, 10, 9, 9, 10, 10, 16],
+          shift: 2669,
+        },
+        {
+          id: 10,
+          name: "Kwistet",
+          scores: [9, 8, 17, 7, 8, 19, 6, 8, 6, 8, 9.5, 18],
+          shift: 2875,
+        },
+        {
+          id: 11,
+          name: "GeorgeSnaptDeClouNie",
+          scores: [7, 7, 20, 8, 9, 19, 10, 8, 9, 9, 8.5, 19],
+          shift: 4271,
+        },
+        {
+          id: 12,
+          name: "Klein Gevaarlijk Afval",
+          scores: [7, 5, 18, 8, 9, 18, 9, 8, 6, 9, 7, 17],
+          shift: 3307,
+        },
+        {
+          id: 13,
+          name: "TTC Solar Batteries Torhout",
+          scores: [8, 7, 19, 8, 9, 13, 8, 8, 8, 8, 8, 19],
+          shift: 6069,
+        },
+        {
+          id: 14,
+          name: "The Pacers",
+          scores: [5, 8, 17, 6, 10, 13, 9, 7, 7, 10, 9.5, 18],
+          shift: 2844,
+        },
+        {
+          id: 15,
+          name: "Efkes tussendoor 2 grote pitta’s aub",
+          scores: [6, 4, 17, 6, 5, 12, 2, 5, 2, 6, 7, 15],
+          shift: 1473,
+        },
+        {
+          id: 16,
+          name: "Het eiland",
+          scores: [3, 6, 18, 6, 10, 16, 8, 7, 4, 8, 7, 16],
+          shift: 420,
+        },
+        {
+          id: 17,
+          name: "The Ice Team",
+          scores: [5, 4, 16, 5, 6, 12, 4, 4, 8, 8, 8, 18],
+          shift: 3500,
+        },
+        {
+          id: 18,
+          name: "Eyjafjallajokull",
+          scores: [8, 7, 18, 9, 8, 17, 6, 8, 5, 10, 10, 16],
+          shift: 3862,
+        },
+        {
+          id: 19,
+          name: "FC Den Oek",
+          scores: [5, 7, 19, 5, 9, 13, 7, 7, 4, 10, 8.5, 17],
+          shift: 3800,
+        },
+        {
+          id: 20,
+          name: "Habaja",
+          scores: [6, 7, 18, 7, 8, 14, 8, 9, 8, 9, 10, 17],
+          shift: 3433,
+        },
+        {
+          id: 21,
+          name: "The Jingle Bells",
+          scores: [6, 6, 14, 5, 5, 11, 6, 9, 5, 8, 8, 20],
+          shift: 3340,
+        },
+        {
+          id: 22,
+          name: "1, 2, 3 ik weet het niet",
+          scores: [5, 5, 18, 8, 7, 16, 9, 8, 7, 8, 8, 17],
+          shift: 4820,
+        },
+        {
+          id: 23,
+          name: "Zuip2quiz",
+          scores: [6, 5, 16, 9, 9, 12, 4, 6, 8, 8, 7.5, 16],
+          shift: 3527,
+        },
+        {
+          id: 24,
+          name: "JOURNEYS",
+          scores: [9, 6, 17, 5, 10, 17, 9, 9, 4, 8, 8.5, 18],
+          shift: 3500,
+        },
+        {
+          id: 25,
+          name: "Overstekend Wild",
+          scores: [8, 6, 18, 7, 10, 19, 10, 10, 7, 9, 10, 18],
+          shift: 4158,
+        },
+        {
+          id: 26,
+          name: "Tamuzement",
+          scores: [7, 9, 16, 9, 8, 19, 8, 8, 10, 8, 7, 17],
+          shift: 3684,
+        },
+        {
+          id: 27,
+          name: "AC Meloen",
+          scores: [6, 8, 20, 9, 9, 16, 8, 8, 7, 10, 10, 19],
+          shift: 3456,
+        },
+        {
+          id: 28,
+          name: "The Mixed Team",
+          scores: [8, 6, 13, 7, 9, 11, 3, 4, 5, 8, 4, 14],
+          shift: 3000,
+        },
+        {
+          id: 29,
+          name: "De Dode Vogels",
+          scores: [9, 9, 19, 8, 10, 19, 10, 9, 10, 8, 10, 18],
+          shift: 3000,
+        },
+        {
+          id: 30,
+          name: "Sijo",
+          scores: [3, 2, 12, 8, 3, 9, 2, 4, 7, 7, 7.5, 15],
+          shift: 2852,
+        },
+        {
+          id: 31,
+          name: "‘t Kippenhok",
+          scores: [5, 6, 18, 5, 7, 10, 7, 6, 9, 9, 8, 19],
+          shift: 8000,
+        },
+        {
+          id: 32,
+          name: "Quizellas",
+          scores: [4, 6, 19, 5, 7, 13, 7, 7, 4, 6, 8, 15],
+          shift: 2720,
+        },
+        {
+          id: 33,
+          name: "C'est la vietjes",
+          scores: [6, 7, 17, 6, 5, 12, 2, 6, 4, 4, 7, 15],
+          shift: 3680,
+        },
+        {
+          id: 34,
+          name: "De amateurs",
+          scores: [7, 5, 11, 4, 5, 13, 4, 9, 3, 6, 7, 17],
+          shift: 3600,
+        },
+      ];
+
+      let rounds = defaultRounds;
+      let teams = defaultTeams;
+      let shiftTarget = 0;
+
+      function checkPass() {
+        const val = document.getElementById("pass-input").value;
+        if (val === "eddytje") {
+          document.getElementById("login-overlay").style.display = "none";
+          sessionStorage.setItem("admin_auth", "true");
+        } else {
+          document.getElementById("pass-err").style.display = "block";
+        }
+      }
+
+      if (sessionStorage.getItem("admin_auth") === "true") {
+        document.getElementById("login-overlay").style.display = "none";
+      }
+
+      document
+        .getElementById("pass-input")
+        .addEventListener("keydown", function (e) {
+          if (e.key === "Enter") checkPass();
+        });
+
+      function updateQuickRoundSelect() {
+        const select = document.getElementById("quick_round");
+        select.innerHTML = "";
+        rounds.forEach((r, idx) => {
+          const opt = document.createElement("option");
+          opt.value = idx;
+          opt.textContent = `${idx + 1}. ${r}`;
+          select.appendChild(opt);
+        });
+      }
+
+      function renderTeamPreview() {
+        const container = document.getElementById("teamList");
+        container.innerHTML = "";
+        teams.forEach((t) => {
+          const item = document.createElement("div");
+          item.className = "team-preview-item";
+          item.textContent = `#${t.id}: ${t.name}`;
+          container.appendChild(item);
+        });
+      }
+
+      function handleTypeChange() {
+        const type = document.getElementById("quick_type").value;
+        const roundContainer = document.getElementById(
+          "round_select_container",
+        );
+        const label = document.getElementById("label_score");
+        const scoreInput = document.getElementById("quick_score");
+
+        if (type === "shift") {
+          roundContainer.style.display = "none";
+          label.textContent = "Gegokte Schifting";
+          scoreInput.placeholder = "bv. 3200";
+        } else {
+          roundContainer.style.display = "flex";
+          label.textContent = "Score";
+          scoreInput.placeholder = "bv. 8.5";
+        }
+      }
+
+      function saveShiftTarget() {
+        const val = parseFloat(
+          document.getElementById("shift_target_input").value,
+        );
+        const status = document.getElementById("shift_target_status");
+        if (isNaN(val)) {
+          status.style.color = "#dc3545";
+          status.textContent = "Ongeldig getal!";
+          return;
+        }
+        db.ref("quiz_data/shift_target").set(val);
+        status.style.color = "#28a745";
+        status.textContent = `Opgeslagen (${val})`;
+      }
+
+      function submitQuickScore() {
+        const type = document.getElementById("quick_type").value;
+        const teamNr = parseInt(document.getElementById("quick_nr").value);
+        const val = parseFloat(document.getElementById("quick_score").value);
+        const status = document.getElementById("quick_status");
+
+        if (isNaN(teamNr) || isNaN(val)) {
+          status.style.color = "#dc3545";
+          status.textContent = "Ongeldige invoer!";
+          return;
+        }
+
+        const team = teams.find((t) => t.id === teamNr);
+        if (!team) {
+          status.style.color = "#dc3545";
+          status.textContent = `Team #${teamNr} niet gevonden!`;
+          return;
+        }
+
+        if (type === "shift") {
+          team.shift = val;
+          status.textContent = `Team #${teamNr} (${team.name}) - Schifting: ${val}`;
+        } else {
+          const rIdx = parseInt(document.getElementById("quick_round").value);
+          team.scores[rIdx] = val;
+          status.textContent = `Team #${teamNr} (${team.name}) - ${rounds[rIdx]}: ${val}`;
+        }
+
+        db.ref("quiz_data/teams").set(teams);
+        status.style.color = "#28a745";
+
+        document.getElementById("quick_nr").value = "";
+        document.getElementById("quick_score").value = "";
+        document.getElementById("quick_nr").focus();
+      }
+
+      function resetToDefaults() {
+        if (confirm("Wil je alle 34 teams uploaden/resetten naar Firebase?")) {
+          db.ref("quiz_data").set({
+            rounds: defaultRounds,
+            teams: defaultTeams,
+            shift_target: 3000,
+          });
+          alert("Data geüpload naar de cloud!");
+        }
+      }
+
+      db.ref("quiz_data").on("value", (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          rounds = data.rounds || defaultRounds;
+          teams = data.teams || defaultTeams;
+          shiftTarget = data.shift_target !== undefined ? data.shift_target : 0;
+          document.getElementById("shift_target_input").value = shiftTarget;
+          updateQuickRoundSelect();
+          renderTeamPreview();
+        } else {
+          resetToDefaults();
+        }
+      });
+
+      ["quick_nr", "quick_score"].forEach((id) => {
+        document
+          .getElementById(id)
+          .addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              submitQuickScore();
+            }
+          });
+      });
+
+      document
+        .getElementById("shift_target_input")
+        .addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            saveShiftTarget();
+          }
+        });
+    </script>
+  </body>
+</html>

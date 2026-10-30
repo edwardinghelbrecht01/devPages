@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>TTC Zandvoorde - Opstellingen Maker</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: sans-serif; }
+    body { margin: 0; background-color: #e5e5e5; display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar {
+      width: 410px;
+      background: #fff;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      flex-shrink: 0;
+    }
+
+    #sidebar h2 { margin: 0 0 10px 0; font-size: 1.15em; color: #c00000; }
+    
+    .manual-form {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+    .manual-form input { padding: 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.9em; }
+    .manual-form input[type="text"].name { flex: 1; min-width: 0; }
+    .manual-form input[type="text"].rank { width: 50px; text-transform: uppercase; }
+    .manual-form input[type="number"].r-idx { width: 55px; }
+    .manual-form button {
+      background: #0a8f2e; color: #fff; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: bold;
+    }
+
+    .sidebar-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 8px; }
+    .sidebar-actions button {
+      padding: 7px 4px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.80em;
+    }
+    .btn-save { background: #0a8f2e; color: #fff; }
+    .btn-auto { background: #007acc; color: #fff; }
+    .btn-copy { background: #6f42c1; color: #fff; }
+    .btn-vttl { background: #444; color: #fff; }
+    .btn-clear { background: #c00000; color: #fff; }
+    .btn-excel { background: #107c41; color: #fff; }
+
+    .player-pool {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 6px;
+      background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .category-filter {
+      padding: 8px 16px;
+      background: #fff;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .filter-group select {
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.88em;
+      font-weight: bold;
+      background: #fff;
+      cursor: pointer;
+    }
+    .btn-nav-week {
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px 9px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.85em;
+    }
+    .btn-nav-week:hover {
+      background: #ddd;
+    }
+    .category-filter button.cat-btn {
+      padding: 5px 12px;
+      border: 1px solid #ccc;
+      background: #f8f8f8;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    .category-filter button.cat-btn.active {
+      background: #c00000;
+      color: #fff;
+      border-color: #c00000;
+      font-weight: bold;
+    }
+
+    #main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 12px;
+      align-content: start;
+    }
+
+    .team-card {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .team-card.is-forfeit {
+      border: 1px solid #c00000;
+      background: #fff8f8;
+    }
+
+    .team-header {
+      background: #f7f7f7;
+      border-bottom: 1px solid #ddd;
+      padding: 7px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .team-card.is-forfeit .team-header {
+      background: #ffebeb;
+    }
+
+    .team-header-left {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+      flex: 1;
+    }
+    .team-title {
+      font-weight: bold;
+      color: #c00000;
+      font-size: 0.96em;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .team-subtitle {
+      font-size: 0.76em;
+      color: #666;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .team-header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .badge-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .team-badge {
+      font-size: 0.74em;
+      background: #eee;
+      color: #444;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .speeldag-badge {
+      font-size: 0.72em;
+      background: #e9ecef;
+      color: #1971c2;
+      border: 1px solid #d0ebff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .select-ff {
+      border: 1px solid #ccc;
+      background: #fff;
+      color: #333;
+      font-size: 0.72em;
+      font-weight: bold;
+      padding: 2px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .select-ff.has-ff {
+      background: #c00000;
+      color: #fff;
+      border-color: #c00000;
+    }
+
+    .slots-container { padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    
+    .slot-row {
+      display: flex;
+      align-items: center;
+      background: #fdfdfd;
+      border: 1px dashed #bbb;
+      border-radius: 3px;
+      min-height: 34px;
+      padding: 0 6px;
+      overflow: hidden;
+    }
+    .slot-num { 
+      width: 52px; 
+      font-size: 0.75em; 
+      color: #777; 
+      font-weight: bold; 
+      flex-shrink: 0; 
+    }
+    .slot-dropzone { 
+      flex: 1; 
+      min-height: 32px; 
+      display: flex; 
+      align-items: center; 
+      min-width: 0; 
+      overflow: hidden; 
+    }
+
+    .player-chip {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-left: 4px solid #c00000;
+      border-radius: 3px;
+      padding: 4px 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      min-width: 0;
+      gap: 4px;
+    }
+    
+    .player-chip.usage-1 {
+      background: #e8f4fd;
+      border-left-color: #0288d1;
+    }
+    .player-chip.usage-2 {
+      background: #fff8e1;
+      border-left-color: #fbc02d;
+    }
+    .player-chip.usage-max {
+      background: #fbe9e7;
+      border-left-color: #d32f2f;
+    }
+
+    .player-chip.status-niet_spelend {
+      opacity: 0.50;
+      border-left-color: #888 !important;
+      background: #e5e5e5 !important;
+    }
+    .player-chip.status-niet_spelend .p-name {
+      text-decoration: line-through;
+      color: #555;
+    }
+
+    .player-chip.status-reserve {
+      border-left-color: #e67e22 !important;
+      background: #fff3e0 !important;
+    }
+
+    .player-chip-left {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+    .player-chip-right {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      gap: 3px;
+    }
+
+    .p-ranking-index {
+      font-size: 0.72em;
+      font-weight: bold;
+      color: #555;
+      background: #e9e9e9;
+      border-radius: 2px;
+      padding: 1px 3px;
+      min-width: 18px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .p-name {
+      font-weight: bold;
+      font-size: 0.82em;
+      color: #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .p-rank { font-size: 0.78em; color: #666; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+    .status-btn-group {
+      display: flex;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      overflow: hidden;
+      background: #eee;
+      flex-shrink: 0;
+    }
+    .status-btn {
+      border: none;
+      background: #fff;
+      padding: 2px 4px;
+      font-size: 0.68em;
+      cursor: pointer;
+      font-weight: bold;
+      color: #777;
+      outline: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .status-btn:hover {
+      background: #f0f0f0;
+    }
+    .status-btn.active.s-spelend {
+      background: #27ae60;
+      color: #fff;
+    }
+    .status-btn.active.s-niet_spelend {
+      background: #c0392b;
+      color: #fff;
+    }
+    .status-btn.active.s-reserve {
+      background: #e67e22;
+      color: #fff;
+    }
+    
+    .btn-remove-slot {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85em;
+      padding: 0 1px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .btn-remove-slot:hover {
+      color: #c00000;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <h2>Spelers & Opstelling</h2>
+
+    <div class="manual-form">
+      <input type="number" id="manualRIndex" class="r-idx" placeholder="Index">
+      <input type="text" id="manualName" class="name" placeholder="Naam speler">
+      <input type="text" id="manualRank" class="rank" placeholder="Klas.">
+      <button onclick="addManualPlayer()">+</button>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="btn-save" onclick="saveState()">Opslaan</button>
+      <button class="btn-auto" onclick="autoFillByRank()">⚡ Auto Vullen</button>
+      <button class="btn-copy" onclick="copyPreviousWeek()">📋 Kopieer vorige week</button>
+      <button class="btn-excel" onclick="downloadExcel()">📊 Excel Downloaden</button>
+      <button class="btn-vttl" onclick="fetchClubMembers()">Leden ophalen</button>
+      <button class="btn-clear" onclick="clearAssignments()">Wissen</button>
+    </div>
+
+    <div class="player-pool" id="playerPool"></div>
+  </div>
+
+  <div id="content">
+    <div class="category-filter">
+      <div class="filter-group">
+        <strong>Speeldag:</strong>
+        <button type="button" class="btn-nav-week" onclick="navigateSpeeldag(-1)" title="Vorige speeldag">◀</button>
+        <select id="speeldagSelect" onchange="onSpeeldagChange(this.value)">
+          <option value="0">Speeldag 0 (Standaard)</option>
+        </select>
+        <button type="button" class="btn-nav-week" onclick="navigateSpeeldag(1)" title="Volgende speeldag">▶</button>
+      </div>
+
+      <div class="filter-group">
+        <strong>Filter:</strong>
+        <button class="cat-btn active" onclick="setCategoryFilter('all', this)">Alles</button>
+        <button class="cat-btn" onclick="setCategoryFilter('Heren', this)">Heren</button>
+        <button class="cat-btn" onclick="setCategoryFilter('Dames', this)">Dames</button>
+        <button class="cat-btn" onclick="setCategoryFilter('Veteranen', this)">Veteranen</button>
+        <button class="cat-btn" onclick="setCategoryFilter('Jeugd', this)">Jeugd</button>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="teamsGrid" style="display:contents;">
+        <div style="padding:20px; color:#555;">Ploegen & matchen ophalen via VTTL...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SOAP_ENDPOINT = "https://api.vttl.be/index.php?s=vttl";
+    const STORAGE_KEY = "ttc_opstelling_state_v7";
+
+    const RANK_VALUES = {
+      'A': 1,
+      'B0': 2, 'B2': 3, 'B4': 4, 'B6': 5,
+      'C0': 6, 'C2': 7, 'C4': 8, 'C6': 9,
+      'D0': 10, 'D2': 11, 'D4': 12, 'D6': 13,
+      'E0': 14, 'E2': 15, 'E4': 16, 'E6': 17,
+      'NG': 18
+    };
+
+    const STATUS_PRIORITY = {
+      'spelend': 1,
+      'niet_spelend': 2,
+      'reserve': 3
+    };
+
+    let allFetchedTeams = [];
+    let currentCategory = 'all';
+    let currentSpeeldag = 1;
+    let herenWeekCalendar = {};
+
+    let appState = {
+      allPlayers: [],
+      speeldagen: {}
+    };
+
+    function initSpeeldagDropdown() {
+      const select = document.getElementById('speeldagSelect');
+      const selectedVal = select.value || String(currentSpeeldag);
+      select.innerHTML = '<option value="0">Speeldag 0 (Standaard)</option>';
+
+      for (let i = 1; i <= 22; i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+
+        let dateLabel = '';
+        const cal = herenWeekCalendar[i];
+        if (cal && cal.saturday) {
+          const d = cal.saturday.getDate();
+          const m = cal.saturday.getMonth() + 1;
+          dateLabel = ` (${d}/${m < 10 ? '0' + m : m})`;
+        }
+
+        opt.textContent = `Speeldag ${i}${dateLabel}`;
+        select.appendChild(opt);
+      }
+
+      select.value = selectedVal;
+    }
+
+    function formatOrdinal(numericValue) {
+      const n = Number.parseInt(numericValue, 10);
+      if (!Number.isFinite(n)) return "";
+      return n === 1 ? "1ste" : `${n}de`;
+    }
+
+    function formatDivisionName(divisionName, category = "") {
+      const trimmed = String(divisionName || "").trim();
+      if (!trimmed) return "";
+
+      if (category === "Jeugd" || /jeugd/i.test(trimmed)) {
+        let cleanYouth = trimmed
+          .replace(/[\u2013\u2014]/g, "-")
+          .replace(/\b(west\s*-\s*vl(\.|aanderen)?|west\s*vl(\.|aanderen)?|w\s*-\s*vl(\.)?)\b/gi, "")
+          .replace(/\b(afdeling\s*\d+|afd\.?\s*\d+)\b/gi, "")
+          .replace(/\bprov\.?(\s*\.)?\b/gi, "")
+          .replace(/\bjeugd\b/gi, "")
+          .replace(/\s*-\s*/g, " - ")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        cleanYouth = cleanYouth.replace(/^(\s*[-.]\s*)+|(\s*[-.]\s*)+$/g, "").trim();
+        if (cleanYouth) return cleanYouth;
+      }
+
+      let normalized = trimmed
+        .replace(/[\u2013\u2014]/g, "-")
+        .replace(/\b(west\s*-\s*vl(\.|aanderen)?|west\s*vl(\.|aanderen)?|w\s*-\s*vl(\.)?)\b/gi, "")
+        .replace(/\s*-\s*/g, " - ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (/^regionvttl$/i.test(normalized)) return "Landelijke";
+
+      const reeksMatch = normalized.match(/reeks\s*([a-z])/i);
+      const afdelingMatch = normalized.match(/(?:afdeling|afd\.?)\s*(\d+)\s*([a-z])/i);
+
+      if (reeksMatch && /regionvttl/i.test(normalized)) {
+        return `Landelijke ${reeksMatch[1].toUpperCase()}`;
+      }
+
+      if (afdelingMatch) {
+        const level = formatOrdinal(afdelingMatch[1]);
+        const reeksLetter = afdelingMatch[2].toUpperCase();
+        if (/nationaal/i.test(normalized)) return `${level} nationale ${reeksLetter}`;
+        if (/\bprov\b|\bprovinciaal\b|\bprovinciale\b/i.test(normalized)) return `${level} prov. ${reeksLetter}`;
+        if (/regionvttl/i.test(normalized)) return `Landelijke ${reeksLetter}`;
+      }
+
+      normalized = normalized.replace(/\bprovinciale\b|\bprovinciaal\b/gi, "prov.");
+      return normalized;
+    }
+
+    function normalizeTeamName(teamName) {
+      let cleaned = String(teamName || "").trim();
+      cleaned = cleaned.replace(/\bde\s+woudpalet\s+houthulst\b/gi, "Houthulst").replace(/\bde\s+woudpalet\b/gi, "Houthulst");
+      const prefixes = [
+        /\b(koninklijke|kon\.?)\b/gi,
+        /\bK\.?\s*T\.?\s*T\.?\s*C\.?\b/gi,
+        /\bT\.?\s*T\.?\s*C\.?\b/gi,
+        /\bC\.?\s*T\.?\s*T\.?\b/gi,
+        /\bT\.?\s*T\.?\b/gi,
+        /\bvzw\b/gi,
+      ];
+      for (const p of prefixes) cleaned = cleaned.replace(p, " ");
+      return cleaned.replace(/\s{2,}/g, " ").trim();
+    }
+
+    function isTeamMatch(matchTeamName, letter) {
+      const raw = String(matchTeamName || "").trim().toUpperCase();
+      const wanted = String(letter || "").trim().toUpperCase();
+      if (raw === wanted) return true;
+      const parts = raw.split(/\s+/);
+      return parts[parts.length - 1] === wanted;
+    }
+
+    function parseApiDate(dateStr, timeStr) {
+      if (!dateStr) return null;
+      const parts = dateStr.split("-").map(Number);
+      if (parts.length !== 3) return null;
+      let hours = 19, mins = 0;
+      if (timeStr && timeStr.includes(":")) {
+        const t = timeStr.split(":").map(Number);
+        hours = t[0] || 0;
+        mins = t[1] || 0;
+      }
+      return new Date(parts[0], parts[1] - 1, parts[2], hours, mins, 0);
+    }
+
+    function getElementsByLocalName(root, localName) {
+      return Array.from(root.getElementsByTagName("*")).filter(
+        (node) => node.localName === localName
+      );
+    }
+
+    function getDirectChildText(element, tagName, fallback = "") {
+      const directChild = Array.from(element.children).find(
+        (child) => child.localName === tagName
+      );
+      if (directChild?.textContent) return directChild.textContent.trim();
+      const descendant = getElementsByLocalName(element, tagName)[0];
+      return descendant?.textContent?.trim() || fallback;
+    }
+
+    async function callSoap(action, bodyXml) {
+      const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://api.frenoy.net/TabTAPI">
+  <soap:Body>${bodyXml}</soap:Body>
+</soap:Envelope>`;
+
+      const response = await fetch(SOAP_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "text/xml; charset=utf-8", "SOAPAction": action },
+        body: envelope,
+      });
+
+      if (!response.ok) throw new Error(`SOAP ${action} mislukt: ${response.status}`);
+      return response.text();
+    }
+
+    async function fetchDivisionMatches(divisionId) {
+      const xmlText = await callSoap(
+        "GetMatches",
+        `<tns:GetMatchesRequest><tns:DivisionId>${divisionId}</tns:DivisionId><tns:WithDetails>false</tns:WithDetails></tns:GetMatchesRequest>`
+      );
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+      const matchEntries = getElementsByLocalName(xmlDoc, "TeamMatchesEntries");
+
+      return matchEntries.map(entry => ({
+        date: getDirectChildText(entry, "Date"),
+        time: getDirectChildText(entry, "Time"),
+        weekName: getDirectChildText(entry, "WeekName"),
+        homeClub: getDirectChildText(entry, "HomeClub"),
+        homeTeam: getDirectChildText(entry, "HomeTeam"),
+        awayClub: getDirectChildText(entry, "AwayClub"),
+        awayTeam: getDirectChildText(entry, "AwayTeam"),
+        isCompleted: getDirectChildText(entry, "IsCompleted", "false") === "true"
+      }));
+    }
+
+    function getMatchForWeek(matches, letter, teamCategory, properTeamName, targetWeekNum, targetDateRange) {
+      const myLabel = properTeamName;
+      const byeTitle = teamCategory === "Heren" ? `${myLabel} - Bye` : `${myLabel} Bye`;
+
+      if (targetWeekNum === 0) {
+        return {
+          title: properTeamName,
+          timing: "Basisopstelling",
+          dateFormatted: "",
+          timeRaw: "",
+          weekName: "",
+          isBye: false,
+          isHome: true,
+          oppName: "",
+          ownWeekNum: ""
+        };
+      }
+
+      const relevant = matches
+        .map(m => ({
+          ...m,
+          dt: parseApiDate(m.date, m.time),
+          weekNum: parseInt((m.weekName || "").replace(/\D/g, ''), 10)
+        }))
+        .filter(m => {
+          const isHome = m.homeClub === "WVL109" && isTeamMatch(m.homeTeam, letter);
+          const isAway = m.awayClub === "WVL109" && isTeamMatch(m.awayTeam, letter);
+          return isHome || isAway;
+        });
+
+      let found = null;
+      if (targetDateRange && targetDateRange.start && targetDateRange.end) {
+        found = relevant.find(m => m.dt && m.dt >= targetDateRange.start && m.dt <= targetDateRange.end);
+      }
+
+      if (!found) {
+        found = relevant.find(m => m.weekNum === targetWeekNum);
+      }
+
+      if (!found) {
+        return {
+          title: byeTitle,
+          timing: "Bye",
+          dateFormatted: "",
+          timeRaw: "",
+          weekName: String(targetWeekNum),
+          isBye: true,
+          isHome: true,
+          oppName: "Bye",
+          ownWeekNum: ""
+        };
+      }
+
+      const isHome = found.homeClub === "WVL109" && isTeamMatch(found.homeTeam, letter);
+      const oppRaw = isHome ? found.awayTeam : found.homeTeam;
+      const ownWeekNum = found.weekNum ? String(found.weekNum) : (found.weekName ? found.weekName.replace(/\D/g, '') : "");
+
+      if (/bye/i.test(oppRaw)) {
+        return {
+          title: byeTitle,
+          timing: "Bye",
+          dateFormatted: "",
+          timeRaw: found.time ? found.time.slice(0, 5) : "",
+          weekName: String(targetWeekNum),
+          isBye: true,
+          isHome,
+          oppName: "Bye",
+          ownWeekNum
+        };
+      }
+
+      const opp = normalizeTeamName(oppRaw);
+      const timePart = found.time ? ` ${found.time.slice(0, 5)}` : "";
+      
+      const dayNames = ["zon", "maa", "din", "woe", "don", "vrij", "zat"];
+      let dateShort = "";
+      if (found.dt) {
+        const d = found.dt.getDate();
+        const m = found.dt.getMonth() + 1;
+        dateShort = `${dayNames[found.dt.getDay()]} ${d}/${m < 10 ? '0' + m : m}`;
+      }
+
+      const fixture = isHome ? `${myLabel} - ${opp}` : `${opp} - ${myLabel}`;
+      return {
+        title: fixture,
+        timing: `${dateShort}${timePart}`.trim(),
+        dateFormatted: dateShort,
+        timeRaw: found.time ? found.time.slice(0, 5) : "",
+        weekName: String(targetWeekNum),
+        isBye: false,
+        isHome,
+        oppName: opp,
+        ownWeekNum
+      };
+    }
+
+    async function fetchTeamsForClub(club) {
+      const xmlText = await callSoap(
+        "GetClubTeams",
+        `<tns:GetClubTeamsRequest><tns:Club>${club}</tns:Club></tns:GetClubTeamsRequest>`
+      );
+
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+      const teamEntries = getElementsByLocalName(xmlDoc, "TeamEntries");
+      const teams = [];
+
+      for (const entry of teamEntries) {
+        const rawTeam = getDirectChildText(entry, "Team");
+        const divisionCategory = getDirectChildText(entry, "DivisionCategory");
+        const rawDivisionName = getDirectChildText(entry, "DivisionName");
+        const teamId = getDirectChildText(entry, "TeamId");
+        const divisionId = getDirectChildText(entry, "DivisionId");
+
+        let category = "Heren";
+        let playerCount = 4;
+        let properTeamName = `ZVD ${rawTeam}`;
+
+        const is5deProv = /5/i.test(rawDivisionName) || 
+                          /5/i.test(divisionCategory) ||
+                          rawTeam.toUpperCase().trim() === 'K';
+
+        if (/veteran/i.test(rawDivisionName) || /veteran/i.test(rawTeam)) {
+          category = "Veteranen";
+          playerCount = 3;
+          properTeamName = `Veteranen ${rawTeam.replace(/^veteran(en)?\s*/i, '')}`.trim();
+          if (!properTeamName.match(/[A-Z]$/)) properTeamName += " A";
+        } else if (/dames/i.test(rawDivisionName) || /dames/i.test(rawTeam)) {
+          category = "Dames";
+          playerCount = 3;
+          properTeamName = `Dames ${rawTeam.replace(/^dames?\s*/i, '')}`.trim();
+          if (!properTeamName.match(/[A-Z]$/)) properTeamName += " A";
+        } else if (/jeugd/i.test(rawDivisionName) || /^u1[25]/i.test(rawTeam) || /jeugd/i.test(rawTeam)) {
+          category = "Jeugd";
+          playerCount = 3;
+          const letter = (rawTeam.match(/[A-Z]$/i) || ['A'])[0].toUpperCase();
+          if (/12/i.test(rawDivisionName) || /12/i.test(rawTeam)) {
+            properTeamName = `Jeugd-12 ${letter}`;
+          } else if (/15/i.test(rawDivisionName) || /15/i.test(rawTeam)) {
+            properTeamName = `Jeugd-15 ${letter}`;
+          } else {
+            properTeamName = `Jeugd ${letter}`;
+          }
+        } else {
+          if (is5deProv) {
+            playerCount = 3;
+          }
+        }
+
+        teams.push({
+          teamId,
+          divisionId,
+          teamKey: properTeamName,
+          teamName: properTeamName,
+          rawLetter: rawTeam,
+          category,
+          playerCount,
+          divisionCategory,
+          divisionFormatted: formatDivisionName(rawDivisionName, category),
+          matches: [],
+          matchHeader: properTeamName,
+          matchTiming: "",
+          matchTime: "",
+          dateFormatted: "",
+          isBye: false,
+          isHome: true,
+          oppName: "",
+          ownWeekNum: ""
+        });
+      }
+
+      return teams;
+    }
+
+    function determineCalendarFromHeren() {
+      herenWeekCalendar = {};
+      const herenTeams = allFetchedTeams.filter(t => t.category === "Heren");
+
+      for (let w = 1; w <= 22; w++) {
+        const dates = [];
+        herenTeams.forEach(t => {
+          (t.matches || []).forEach(m => {
+            const wNum = parseInt((m.weekName || "").replace(/\D/g, ''), 10);
+            if (wNum === w) {
+              const dt = parseApiDate(m.date, m.time);
+              if (dt) dates.push(dt);
+            }
+          });
+        });
+
+        if (dates.length > 0) {
+          dates.sort((a, b) => a - b);
+          const earliest = new Date(dates[0]);
+          const day = earliest.getDay();
+          const diffToMon = (day === 0 ? -6 : 1 - day);
+          const monday = new Date(earliest);
+          monday.setDate(earliest.getDate() + diffToMon);
+          monday.setHours(0, 0, 0, 0);
+
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
+
+          const saturday = new Date(monday);
+          saturday.setDate(monday.getDate() + 5);
+
+          herenWeekCalendar[w] = { start: monday, end: sunday, saturday };
+        }
+      }
+    }
+
+    function determineCurrentSpeeldagByDate() {
+      const now = new Date();
+      let bestWeek = 1;
+      let minDiff = Infinity;
+
+      for (let w = 1; w <= 22; w++) {
+        const cal = herenWeekCalendar[w];
+        if (cal) {
+          if (now >= cal.start && now <= cal.end) {
+            return w;
+          }
+          const diff = Math.abs(now - cal.start);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestWeek = w;
+          }
+        }
+      }
+      return bestWeek;
+    }
+
+    function updateTeamMatchesForSpeeldag() {
+      const w = currentSpeeldag;
+      const targetRange = herenWeekCalendar[w] || null;
+
+      allFetchedTeams.forEach(team => {
+        const matchInfo = getMatchForWeek(team.matches || [], team.rawLetter, team.category, team.teamName, w, targetRange);
+        team.matchHeader = matchInfo.title;
+        team.matchTiming = matchInfo.timing;
+        team.dateFormatted = matchInfo.dateFormatted;
+        team.matchTime = matchInfo.timeRaw;
+        team.isBye = matchInfo.isBye;
+        team.isHome = matchInfo.isHome;
+        team.oppName = matchInfo.oppName;
+        team.ownWeekNum = matchInfo.ownWeekNum;
+      });
+    }
+
+    async function fetchTeams() {
+      try {
+        const teams = await fetchTeamsForClub("WVL109");
+
+        teams.sort((a, b) => {
+          if (a.category === b.category) {
+            return a.teamName.localeCompare(b.teamName, undefined, { numeric: true });
+          }
+          const order = { "Heren": 1, "Veteranen": 2, "Dames": 3, "Jeugd": 4 };
+          return (order[a.category] || 99) - (order[b.category] || 99);
+        });
+
+        allFetchedTeams = teams;
+
+        const divisionIds = [...new Set(teams.map(t => t.divisionId).filter(Boolean))];
+        const divisionMatches = {};
+
+        await Promise.all(divisionIds.map(async (divId) => {
+          try {
+            divisionMatches[divId] = await fetchDivisionMatches(divId);
+          } catch (e) {
+            divisionMatches[divId] = [];
+          }
+        }));
+
+        allFetchedTeams.forEach(team => {
+          team.matches = divisionMatches[team.divisionId] || [];
+        });
+
+        determineCalendarFromHeren();
+        initSpeeldagDropdown();
+
+        currentSpeeldag = determineCurrentSpeeldagByDate();
+        document.getElementById('speeldagSelect').value = String(currentSpeeldag);
+
+        updateTeamMatchesForSpeeldag();
+        renderSidebarPool();
+        renderBoard();
+      } catch (err) {
+        document.getElementById('teamsGrid').innerHTML = `
+          <div style="color:#c00000;padding:20px;">
+            Fout bij ophalen VTTL API: ${err.message}<br>
+            <small style="color:#666;">Draai via Live Server of localhost om CORS-restricties te vermijden.</small>
+          </div>`;
+      }
+    }
+
+    function getSpeeldagData(spNum) {
+      if (!appState.speeldagen[spNum]) {
+        appState.speeldagen[spNum] = {
+          statuses: {},
+          assignments: {},
+          forfeits: {}
+        };
+      }
+      return appState.speeldagen[spNum];
+    }
+
+    function getPlayerStatusForCurrentSpeeldag(playerId) {
+      const spData = getSpeeldagData(currentSpeeldag);
+      if (spData.statuses[playerId]) {
+        return spData.statuses[playerId];
+      }
+      const sp0 = getSpeeldagData(0);
+      if (sp0.statuses[playerId]) {
+        return sp0.statuses[playerId];
+      }
+      const base = appState.allPlayers.find(p => p.id === playerId);
+      return base ? base.status : 'spelend';
+    }
+
+    function renderSidebarPool() {
+      const pool = document.getElementById('playerPool');
+      pool.innerHTML = '';
+
+      appState.allPlayers.forEach(p => {
+        const effectiveStatus = getPlayerStatusForCurrentSpeeldag(p.id);
+        const el = createPoolPlayerElement(p.id, p.name, p.rank, p.rankingIndex, effectiveStatus);
+        pool.appendChild(el);
+      });
+
+      sortPlayerPool();
+    }
+
+    function sortPlayerPool() {
+      const pool = document.getElementById('playerPool');
+      const chips = Array.from(pool.children);
+
+      chips.sort((a, b) => {
+        const pA = STATUS_PRIORITY[a.dataset.status] || 99;
+        const pB = STATUS_PRIORITY[b.dataset.status] || 99;
+        if (pA !== pB) return pA - pB;
+
+        const idxA = parseInt(a.dataset.rankingIndex, 10);
+        const idxB = parseInt(b.dataset.rankingIndex, 10);
+        if (!isNaN(idxA) && !isNaN(idxB) && idxA !== idxB) {
+          return idxA - idxB;
+        }
+
+        const vA = RANK_VALUES[a.dataset.rank] || 99;
+        const vB = RANK_VALUES[b.dataset.rank] || 99;
+        if (vA !== vB) return vA - vB;
+
+        return a.dataset.name.localeCompare(b.dataset.name);
+      });
+
+      chips.forEach(c => pool.appendChild(c));
+      updatePlayerUsageColors();
+    }
+
+    function sortTeamSlots(teamKey, playerCount) {
+      const players = [];
+      for (let i = 1; i <= playerCount; i++) {
+        const zone = document.querySelector(`[data-target="team-${teamKey}-pos-${i}"]`);
+        if (zone) {
+          const chip = zone.querySelector('.player-chip');
+          if (chip) {
+            players.push({
+              id: chip.dataset.id,
+              name: chip.dataset.name,
+              rank: chip.dataset.rank,
+              rankingIndex: chip.dataset.rankingIndex || '',
+              status: chip.dataset.status || 'spelend'
+            });
+            zone.innerHTML = '';
+          }
+        }
+      }
+
+      players.sort((a, b) => {
+        const idxA = parseInt(a.rankingIndex, 10);
+        const idxB = parseInt(b.rankingIndex, 10);
+        if (!isNaN(idxA) && !isNaN(idxB) && idxA !== idxB) {
+          return idxA - idxB;
+        }
+
+        const vA = RANK_VALUES[a.rank] || 99;
+        const vB = RANK_VALUES[b.rank] || 99;
+        return vA - vB;
+      });
+
+      players.forEach((p, idx) => {
+        const pos = idx + 1;
+        const zone = document.querySelector(`[data-target="team-${teamKey}-pos-${pos}"]`);
+        if (zone) {
+          zone.appendChild(createSlotPlayerElement(p.id, p.name, p.rank, p.rankingIndex, p.status));
+        }
+      });
+    }
+
+    function setTeamForfeit(teamKey, value) {
+      const spData = getSpeeldagData(currentSpeeldag);
+      spData.forfeits[teamKey] = value;
+      const card = document.querySelector(`.team-card[data-team-key="${teamKey}"]`);
+      if (card) {
+        card.classList.toggle('is-forfeit', value !== 'none');
+        const sel = card.querySelector('.select-ff');
+        if (sel) sel.classList.toggle('has-ff', value !== 'none');
+      }
+      saveState(false);
+    }
+
+    function updatePlayerUsageColors() {
+      const counts = {};
+      document.querySelectorAll('.slot-dropzone .player-chip').forEach(c => {
+        const id = c.dataset.id;
+        counts[id] = (counts[id] || 0) + 1;
+      });
+
+      document.querySelectorAll('#playerPool .player-chip').forEach(c => {
+        const count = counts[c.dataset.id] || 0;
+        c.classList.remove('usage-1', 'usage-2', 'usage-max');
+        if (count === 1) c.classList.add('usage-1');
+        else if (count === 2) c.classList.add('usage-2');
+        else if (count > 2) c.classList.add('usage-max');
+      });
+    }
+
+    async function fetchClubMembers() {
+      try {
+        const xmlText = await callSoap(
+          "GetMembers",
+          `<tns:GetMembersRequest><tns:Club>WVL109</tns:Club></tns:GetMembersRequest>`
+        );
+
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        const memberEntries = getElementsByLocalName(xmlDoc, "MemberEntries");
+
+        memberEntries.forEach(entry => {
+          const firstName = getDirectChildText(entry, "FirstName");
+          const lastName = getDirectChildText(entry, "LastName");
+          const rank = getDirectChildText(entry, "Ranking", "NG");
+          const uniqueId = getDirectChildText(entry, "UniqueIndex");
+          const rankingIndex = getDirectChildText(entry, "RankingIndex", "");
+
+          const fullName = `${firstName} ${lastName}`.trim();
+          const defaultStatus = (rank.toUpperCase() === 'NG') ? 'reserve' : 'spelend';
+
+          const exists = appState.allPlayers.find(p => p.id === uniqueId);
+          if (!exists) {
+            appState.allPlayers.push({
+              id: uniqueId,
+              name: fullName,
+              rank: rank,
+              rankingIndex: rankingIndex,
+              status: defaultStatus
+            });
+          }
+        });
+
+        renderSidebarPool();
+        saveState(false);
+      } catch (e) {
+        alert("Kon leden niet ophalen: " + e.message);
+      }
+    }
+
+    function renderStatusButtonGroup(status) {
+      return `
+        <div class="status-btn-group">
+          <button type="button" class="status-btn s-spelend ${status === 'spelend' ? 'active' : ''}" onclick="setPlayerStatus(event, this, 'spelend')" title="Spelend">👍</button>
+          <button type="button" class="status-btn s-niet_spelend ${status === 'niet_spelend' ? 'active' : ''}" onclick="setPlayerStatus(event, this, 'niet_spelend')" title="Niet-spelend">👎</button>
+          <button type="button" class="status-btn s-reserve ${status === 'reserve' ? 'active' : ''}" onclick="setPlayerStatus(event, this, 'reserve')" title="Reserve">R</button>
+        </div>
+      `;
+    }
+
+    function createPoolPlayerElement(id, name, rank, rankingIndex = '', status = 'spelend') {
+      const el = document.createElement('div');
+      el.className = `player-chip status-${status}`;
+      el.dataset.id = id;
+      el.dataset.name = name;
+      el.dataset.rank = rank;
+      el.dataset.rankingIndex = rankingIndex;
+      el.dataset.status = status;
+
+      el.innerHTML = `
+        <div class="player-chip-left">
+          <span class="p-ranking-index">${rankingIndex || '-'}</span>
+          <span class="p-name" title="${name}">${name}</span>
+        </div>
+        <div class="player-chip-right">
+          <span class="p-rank">${rank}</span>
+          ${renderStatusButtonGroup(status)}
+        </div>
+      `;
+      return el;
+    }
+
+    function createSlotPlayerElement(id, name, rank, rankingIndex = '', status = 'spelend') {
+      const el = document.createElement('div');
+      el.className = `player-chip status-${status}`;
+      el.dataset.id = id;
+      el.dataset.name = name;
+      el.dataset.rank = rank;
+      el.dataset.rankingIndex = rankingIndex;
+      el.dataset.status = status;
+
+      el.innerHTML = `
+        <div class="player-chip-left">
+          <span class="p-ranking-index">${rankingIndex || '-'}</span>
+          <span class="p-name" title="${name}">${name}</span>
+        </div>
+        <div class="player-chip-right">
+          <span class="p-rank">${rank}</span>
+          ${renderStatusButtonGroup(status)}
+          <button class="btn-remove-slot" onclick="removeSlotPlayer(event, this)" title="Verwijder speler uit vak">
+            ✕
+          </button>
+        </div>
+      `;
+      return el;
+    }
+
+    function setPlayerStatus(evt, btn, newStatus) {
+      evt.stopPropagation();
+      const chip = btn.closest('.player-chip');
+      const targetId = chip.dataset.id;
+
+      const spData = getSpeeldagData(currentSpeeldag);
+      spData.statuses[targetId] = newStatus;
+
+      if (currentSpeeldag === 0) {
+        const base = appState.allPlayers.find(p => p.id === targetId);
+        if (base) base.status = newStatus;
+      }
+
+      document.querySelectorAll(`.player-chip[data-id="${targetId}"]`).forEach(c => {
+        c.dataset.status = newStatus;
+        c.classList.remove('status-spelend', 'status-reserve', 'status-niet_spelend');
+        c.classList.add(`status-${newStatus}`);
+
+        const group = c.querySelector('.status-btn-group');
+        if (group) {
+          group.querySelectorAll('.status-btn').forEach(b => {
+            b.classList.remove('active');
+            if (b.classList.contains(`s-${newStatus}`)) {
+              b.classList.add('active');
+            }
+          });
+        }
+      });
+
+      sortPlayerPool();
+      saveState(false);
+    }
+
+    function removeSlotPlayer(evt, btn) {
+      evt.stopPropagation();
+      const chip = btn.closest('.player-chip');
+      const dropzone = chip.closest('.slot-dropzone');
+      chip.remove();
+      if (dropzone && dropzone.dataset.target) {
+        const parts = dropzone.dataset.target.split('-');
+        if (parts.length >= 4 && parts[2] === 'pos' && parts[3] !== 'res') {
+          const teamKey = parts[1];
+          const team = allFetchedTeams.find(t => t.teamKey === teamKey);
+          if (team) sortTeamSlots(teamKey, team.playerCount);
+        }
+      }
+      updatePlayerUsageColors();
+      saveState(false);
+    }
+
+    function setCategoryFilter(cat, btn) {
+      currentCategory = cat;
+      document.querySelectorAll('.category-filter button.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderBoard();
+    }
+
+    function renderBoard() {
+      const container = document.getElementById('teamsGrid');
+      container.innerHTML = '';
+
+      const filtered = allFetchedTeams.filter(t => currentCategory === 'all' || t.category === currentCategory);
+
+      if (filtered.length === 0 && allFetchedTeams.length > 0) {
+        container.innerHTML = `<div style="padding:20px;color:#777;">Geen ploegen gevonden voor deze categorie.</div>`;
+        return;
+      }
+
+      const spData = getSpeeldagData(currentSpeeldag);
+
+      filtered.forEach(team => {
+        const card = document.createElement('div');
+        const ffValue = spData.forfeits[team.teamKey] || 'none';
+        const isFF = ffValue !== 'none';
+        card.className = `team-card ${isFF ? 'is-forfeit' : ''}`;
+        card.dataset.teamKey = team.teamKey;
+
+        const slots = Array.from({ length: team.playerCount }, (_, i) => i + 1);
+        const reeksEnTiming = [team.divisionFormatted, team.matchTiming].filter(Boolean).join(" • ");
+
+        const ownSdBadge = (currentSpeeldag !== 0 && team.ownWeekNum) 
+          ? `<span class="speeldag-badge" title="Reeksspeeldag voor ${team.teamName}">S:${team.ownWeekNum}</span>` 
+          : '';
+
+        card.innerHTML = `
+          <div class="team-header">
+            <div class="team-header-left">
+              <span class="team-title" title="${team.matchHeader}">${team.matchHeader}</span>
+              <span class="team-subtitle" title="${reeksEnTiming}">${reeksEnTiming}</span>
+            </div>
+            <div class="team-header-right">
+              <div class="badge-group">
+                ${ownSdBadge}
+                <span class="team-badge">${team.category}</span>
+              </div>
+              <select class="select-ff ${isFF ? 'has-ff' : ''}" onchange="setTeamForfeit('${team.teamKey}', this.value)">
+                <option value="none" ${ffValue === 'none' ? 'selected' : ''}>Geen FF</option>
+                <option value="zvd" ${ffValue === 'zvd' ? 'selected' : ''}>FF ZVD</option>
+                <option value="opp" ${ffValue === 'opp' ? 'selected' : ''}>FF Tegenst.</option>
+              </select>
+            </div>
+          </div>
+          <div class="slots-container">
+            ${slots.map(i => `
+              <div class="slot-row">
+                <span class="slot-num">Speler ${i}:</span>
+                <div class="slot-dropzone" data-target="team-${team.teamKey}-pos-${i}"></div>
+              </div>
+            `).join('')}
+            <div class="slot-row" style="background:#f4f4f4;">
+              <span class="slot-num">Reserve:</span>
+              <div class="slot-dropzone" data-target="team-${team.teamKey}-pos-res"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      initDropzones();
+      restoreAssignments();
+    }
+
+    function initDropzones() {
+      const zones = document.querySelectorAll('.slot-dropzone');
+      zones.forEach(zone => {
+        new Sortable(zone, {
+          group: {
+            name: 'players',
+            put: true
+          },
+          animation: 150,
+          onAdd: function (evt) {
+            const fromPool = (evt.from.id === 'playerPool');
+            const targetZone = evt.to;
+            const incomingEl = evt.item;
+
+            const existingEl = Array.from(targetZone.children).find(c => c !== incomingEl);
+
+            if (fromPool) {
+              const currentStatus = getPlayerStatusForCurrentSpeeldag(incomingEl.dataset.id);
+              const newSlotEl = createSlotPlayerElement(
+                incomingEl.dataset.id,
+                incomingEl.dataset.name,
+                incomingEl.dataset.rank,
+                incomingEl.dataset.rankingIndex || '',
+                currentStatus
+              );
+
+              targetZone.replaceChild(newSlotEl, incomingEl);
+            } else {
+              if (existingEl) {
+                evt.from.appendChild(existingEl);
+              }
+            }
+
+            const targetKey = targetZone.dataset.target || '';
+            const match = targetKey.match(/^team-(.+)-pos-(\d+)$/);
+            if (match) {
+              const teamKey = match[1];
+              const team = allFetchedTeams.find(t => t.teamKey === teamKey);
+              if (team) {
+                sortTeamSlots(teamKey, team.playerCount);
+              }
+            }
+
+            if (!fromPool) {
+              const fromKey = evt.from.dataset.target || '';
+              const matchFrom = fromKey.match(/^team-(.+)-pos-(\d+)$/);
+              if (matchFrom) {
+                const teamKeyFrom = matchFrom[1];
+                const teamFrom = allFetchedTeams.find(t => t.teamKey === teamKeyFrom);
+                if (teamFrom) {
+                  sortTeamSlots(teamKeyFrom, teamFrom.playerCount);
+                }
+              }
+            }
+
+            updatePlayerUsageColors();
+            saveState(false);
+          }
+        });
+      });
+
+      new Sortable(document.getElementById('playerPool'), {
+        group: {
+          name: 'players',
+          pull: 'clone',
+          put: false
+        },
+        animation: 150,
+        sort: false
+      });
+    }
+
+    function restoreAssignments() {
+      const spData = getSpeeldagData(currentSpeeldag);
+      for (const [targetKey, p] of Object.entries(spData.assignments)) {
+        const zone = document.querySelector(`[data-target="${targetKey}"]`);
+        if (zone && zone.children.length === 0) {
+          const currentStatus = getPlayerStatusForCurrentSpeeldag(p.id);
+          zone.appendChild(createSlotPlayerElement(p.id, p.name, p.rank, p.rankingIndex || '', currentStatus));
+        }
+      }
+      updatePlayerUsageColors();
+    }
+
+    function addManualPlayer() {
+      const nameInput = document.getElementById('manualName');
+      const rankInput = document.getElementById('manualRank');
+      const rIndexInput = document.getElementById('manualRIndex');
+
+      const name = nameInput.value.trim();
+      const rank = (rankInput.value.trim() || 'NG').toUpperCase();
+      const rankingIndex = rIndexInput.value.trim();
+
+      if (!name) return;
+
+      const defaultStatus = (rank === 'NG') ? 'reserve' : 'spelend';
+      const id = 'man_' + Date.now();
+
+      appState.allPlayers.push({
+        id,
+        name,
+        rank,
+        rankingIndex,
+        status: defaultStatus
+      });
+
+      nameInput.value = '';
+      rankInput.value = '';
+      rIndexInput.value = '';
+
+      renderSidebarPool();
+      saveState(false);
+    }
+
+    function autoFillByRank() {
+      const poolChips = Array.from(document.querySelectorAll('#playerPool .player-chip'));
+      const available = poolChips.filter(c => c.dataset.status === 'spelend');
+
+      available.sort((a, b) => {
+        const idxA = parseInt(a.dataset.rankingIndex, 10);
+        const idxB = parseInt(b.dataset.rankingIndex, 10);
+        if (!isNaN(idxA) && !isNaN(idxB) && idxA !== idxB) {
+          return idxA - idxB;
+        }
+
+        const vA = RANK_VALUES[a.dataset.rank] || 99;
+        const vB = RANK_VALUES[b.dataset.rank] || 99;
+        return vA - vB;
+      });
+
+      const herenTeams = allFetchedTeams.filter(t => t.category === 'Heren');
+
+      document.querySelectorAll('.slot-dropzone').forEach(zone => {
+        const isHerenZone = herenTeams.some(t => zone.dataset.target.startsWith(`team-${t.teamKey}-`));
+        if (isHerenZone) {
+          zone.innerHTML = '';
+        }
+      });
+
+      let pIdx = 0;
+      herenTeams.forEach(team => {
+        for (let i = 1; i <= team.playerCount; i++) {
+          if (pIdx < available.length) {
+            const zone = document.querySelector(`[data-target="team-${team.teamKey}-pos-${i}"]`);
+            if (zone) {
+              const p = available[pIdx];
+              zone.appendChild(createSlotPlayerElement(p.dataset.id, p.dataset.name, p.dataset.rank, p.dataset.rankingIndex || '', 'spelend'));
+              pIdx++;
+            }
+          }
+        }
+        sortTeamSlots(team.teamKey, team.playerCount);
+      });
+
+      updatePlayerUsageColors();
+      saveState(false);
+    }
+
+    function copyPreviousWeek() {
+      if (currentSpeeldag <= 1) {
+        alert("Geen eerdere speeldag beschikbaar om te kopiëren.");
+        return;
+      }
+      const prevWeek = currentSpeeldag - 1;
+      const prevData = getSpeeldagData(prevWeek);
+      const currentData = getSpeeldagData(currentSpeeldag);
+
+      currentData.assignments = JSON.parse(JSON.stringify(prevData.assignments || {}));
+      currentData.forfeits = JSON.parse(JSON.stringify(prevData.forfeits || {}));
+
+      renderBoard();
+      saveState(false);
+    }
+
+    function onSpeeldagChange(newVal) {
+      saveState(false);
+      currentSpeeldag = parseInt(newVal, 10);
+      updateTeamMatchesForSpeeldag();
+      renderSidebarPool();
+      renderBoard();
+    }
+
+    function navigateSpeeldag(direction) {
+      saveState(false);
+      let target = currentSpeeldag + direction;
+      if (target < 0) target = 0;
+      if (target > 22) target = 22;
+      currentSpeeldag = target;
+      document.getElementById('speeldagSelect').value = String(currentSpeeldag);
+      updateTeamMatchesForSpeeldag();
+      renderSidebarPool();
+      renderBoard();
+    }
+
+    function saveState(showAlert = true) {
+      const spData = getSpeeldagData(currentSpeeldag);
+      spData.assignments = {};
+
+      document.querySelectorAll('.slot-dropzone').forEach(zone => {
+        const chip = zone.querySelector('.player-chip');
+        if (chip) {
+          spData.assignments[zone.dataset.target] = {
+            id: chip.dataset.id,
+            name: chip.dataset.name,
+            rank: chip.dataset.rank,
+            rankingIndex: chip.dataset.rankingIndex || '',
+            status: chip.dataset.status || 'spelend'
+          };
+        }
+      });
+
+      const state = {
+        allPlayers: appState.allPlayers,
+        speeldagen: appState.speeldagen
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (showAlert) alert(`Opstelling voor Speeldag ${currentSpeeldag} bewaard!`);
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const state = JSON.parse(raw);
+          appState.allPlayers = state.allPlayers || [];
+          appState.speeldagen = state.speeldagen || {};
+        }
+      } catch (e) {
+        console.error("Fout bij laden cache:", e);
+      }
+    }
+
+    function clearAssignments() {
+      if (!confirm(`Weet je zeker dat je alle vakken voor Speeldag ${currentSpeeldag} wilt leegmaken?`)) return;
+      document.querySelectorAll('.slot-dropzone').forEach(zone => {
+        zone.innerHTML = '';
+      });
+      const spData = getSpeeldagData(currentSpeeldag);
+      spData.assignments = {};
+      updatePlayerUsageColors();
+      saveState(false);
+    }
+
+    function makeRichFixture(fixtureText, targetLabel) {
+      const redFont = { name: 'Arial', size: 12, bold: false, color: { argb: 'FFFF0000' } };
+      const normalFont = { name: 'Arial', size: 12, bold: false };
+
+      if (!fixtureText) return { richText: [] };
+
+      const regex = new RegExp(`(${targetLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|Bye)`, 'g');
+      const parts = fixtureText.split(regex);
+      const rich = [];
+
+      for (const part of parts) {
+        if (!part) continue;
+        if (part === targetLabel || part === 'Bye') {
+          rich.push({ text: part, font: redFont });
+        } else {
+          rich.push({ text: part, font: normalFont });
+        }
+      }
+
+      return { richText: rich };
+    }
+
+    function getForfeitText(team, ffType) {
+      if (ffType === 'zvd') {
+        return `Forfait ${team.teamName.replace('ZVD ', 'Zandvoorde ')}`;
+      }
+      if (ffType === 'opp') {
+        const opp = team.oppName || 'Tegenstander';
+        return `Forfait ${opp}`;
+      }
+      return '';
+    }
+
+    async function downloadExcel() {
+      saveState(false);
+
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Opstelling');
+
+      ws.columns = [
+        { width: 10.5 }, { width: 45.7 }, { width: 5.6 }, { width: 5.6 }, { width: 4.1 },
+        { width: 10.5 }, { width: 47.6 }, { width: 5.6 }, { width: 5.6 }, { width: 4.3 },
+        { width: 6.4 }, { width: 5.9 }
+      ];
+
+      const thinBorder = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+
+      const font12Bold = { name: 'Arial', size: 12, bold: true };
+      const font10Regular = { name: 'Arial', size: 10, bold: false };
+      const font10Bold = { name: 'Arial', size: 10, bold: true };
+      const font10BoldTime = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF00B0F0' } };
+      const fontThumb = { name: 'Wingdings', size: 14, bold: false };
+
+      const alignCenter = { horizontal: 'center', vertical: 'middle' };
+      const alignLeft = { horizontal: 'left', vertical: 'middle' };
+
+      const cellA1 = ws.getCell('A1');
+      cellA1.value = currentSpeeldag === 0 ? 'Speeldag 0 (Basis)' : `Week ${currentSpeeldag}`;
+      cellA1.font = font12Bold;
+
+      const cellK2 = ws.getCell('K2');
+      cellK2.value = 'C';
+      cellK2.font = fontThumb;
+      cellK2.alignment = alignCenter;
+
+      const cellL2 = ws.getCell('L2');
+      cellL2.value = 'N';
+      cellL2.font = fontThumb;
+      cellL2.alignment = alignCenter;
+
+      const spData = getSpeeldagData(currentSpeeldag);
+
+      const findTeam = (pattern, cat) => {
+        return allFetchedTeams.find(t => {
+          if (cat && t.category !== cat) return false;
+          return t.rawLetter.toUpperCase() === pattern.toUpperCase() ||
+                 t.teamName.toUpperCase().includes(pattern.toUpperCase());
+        });
+      };
+
+      const leftTeams = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map(l => findTeam(l, 'Heren'));
+      const rightTeams = [
+        findTeam('J', 'Heren'),
+        findTeam('K', 'Heren'),
+        allFetchedTeams.find(t => t.category === 'Veteranen'),
+        allFetchedTeams.find(t => t.category === 'Dames'),
+        findTeam('Jeugd-12 A', 'Jeugd') || findTeam('12 A', 'Jeugd'),
+        findTeam('Jeugd-12 B', 'Jeugd') || findTeam('12 B', 'Jeugd'),
+        findTeam('Jeugd-12 C', 'Jeugd') || findTeam('12 C', 'Jeugd'),
+        findTeam('Jeugd-15 A', 'Jeugd') || findTeam('15 A', 'Jeugd')
+      ];
+
+      const blockHeight = 8;
+      const rowStarts = leftTeams.map((_, idx) => 2 + idx * blockHeight);
+
+      for (let idx = 0; idx < rowStarts.length; idx++) {
+        const r = rowStarts[idx];
+        const tLeft = leftTeams[idx];
+        const tRight = rightTeams[idx];
+
+        if (tLeft) {
+          const ffType = spData.forfeits[tLeft.teamKey] || 'none';
+          const isFF = ffType !== 'none';
+
+          if (tLeft.dateFormatted && !tLeft.isBye) {
+            ws.mergeCells(`C${r}:D${r}`);
+            const cellCDate = ws.getCell(`C${r}`);
+            cellCDate.value = tLeft.dateFormatted;
+            cellCDate.font = font10Bold;
+            cellCDate.alignment = alignCenter;
+            cellCDate.border = thinBorder;
+            ws.getCell(`D${r}`).border = thinBorder;
+          }
+
+          const cellB = ws.getCell(`B${r + 1}`);
+          cellB.value = makeRichFixture(tLeft.matchHeader, tLeft.teamName);
+          cellB.alignment = alignLeft;
+
+          if (tLeft.matchTime && !tLeft.isBye) {
+            ws.mergeCells(`C${r + 1}:D${r + 1}`);
+            const cellCTime = ws.getCell(`C${r + 1}`);
+            cellCTime.value = tLeft.matchTime;
+            cellCTime.font = font10BoldTime;
+            cellCTime.alignment = alignCenter;
+            cellCTime.border = thinBorder;
+            ws.getCell(`D${r + 1}`).border = thinBorder;
+          }
+
+          for (let p = 1; p <= tLeft.playerCount; p++) {
+            const rowIdx = r + 1 + p;
+            const cA = ws.getCell(`A${rowIdx}`);
+            cA.value = `Speler ${p}:`;
+            cA.font = font10Regular;
+            cA.border = thinBorder;
+
+            const cB = ws.getCell(`B${rowIdx}`);
+            const cC = ws.getCell(`C${rowIdx}`);
+            const cD = ws.getCell(`D${rowIdx}`);
+
+            cB.border = thinBorder;
+            cC.border = thinBorder;
+            cD.border = thinBorder;
+
+            cB.font = font10Regular;
+            cB.alignment = alignLeft;
+            cC.font = font10Regular;
+            cC.alignment = alignCenter;
+            cD.font = fontThumb;
+            cD.alignment = alignCenter;
+
+            const pl = spData.assignments[`team-${tLeft.teamKey}-pos-${p}`];
+            if (pl) {
+              cB.value = pl.name;
+              cC.value = pl.rank;
+              const status = getPlayerStatusForCurrentSpeeldag(pl.id);
+              cD.value = (ffType === 'zvd' || status === 'niet_spelend') ? 'N' : 'C';
+            }
+          }
+
+          const resRow = r + 1 + tLeft.playerCount + 1;
+          const cARes = ws.getCell(`A${resRow}`);
+          cARes.value = 'Reserve:';
+          cARes.font = font10Regular;
+          cARes.border = thinBorder;
+
+          const cBRes = ws.getCell(`B${resRow}`);
+          const cCRes = ws.getCell(`C${resRow}`);
+          const cDRes = ws.getCell(`D${resRow}`);
+
+          cBRes.border = thinBorder;
+          cCRes.border = thinBorder;
+          cDRes.border = thinBorder;
+
+          cBRes.font = font10Regular;
+          cBRes.alignment = alignLeft;
+
+          if (isFF) {
+            cBRes.value = getForfeitText(tLeft, ffType);
+          } else {
+            const res = spData.assignments[`team-${tLeft.teamKey}-pos-res`];
+            if (res) {
+              cBRes.value = res.name;
+              cCRes.value = res.rank;
+            }
+          }
+        }
+
+        if (tRight) {
+          const ffType = spData.forfeits[tRight.teamKey] || 'none';
+          const isFF = ffType !== 'none';
+
+          if (tRight.dateFormatted && !tRight.isBye) {
+            ws.mergeCells(`H${r}:I${r}`);
+            const cellHDate = ws.getCell(`H${r}`);
+            cellHDate.value = tRight.dateFormatted;
+            cellHDate.font = font10Bold;
+            cellHDate.alignment = alignCenter;
+            cellHDate.border = thinBorder;
+            ws.getCell(`I${r}`).border = thinBorder;
+          }
+
+          const cellG = ws.getCell(`G${r + 1}`);
+          cellG.value = makeRichFixture(tRight.matchHeader, tRight.teamName);
+          cellG.alignment = alignLeft;
+
+          if (tRight.matchTime && !tRight.isBye) {
+            ws.mergeCells(`H${r + 1}:I${r + 1}`);
+            const cellHTime = ws.getCell(`H${r + 1}`);
+            cellHTime.value = tRight.matchTime;
+            cellHTime.font = font10BoldTime;
+            cellHTime.alignment = alignCenter;
+            cellHTime.border = thinBorder;
+            ws.getCell(`I${r + 1}`).border = thinBorder;
+          }
+
+          for (let p = 1; p <= tRight.playerCount; p++) {
+            const rowIdx = r + 1 + p;
+            const cF = ws.getCell(`F${rowIdx}`);
+            cF.value = `Speler ${p}:`;
+            cF.font = font10Regular;
+            cF.border = thinBorder;
+
+            const cG = ws.getCell(`G${rowIdx}`);
+            const cH = ws.getCell(`H${rowIdx}`);
+            const cI = ws.getCell(`I${rowIdx}`);
+
+            cG.border = thinBorder;
+            cH.border = thinBorder;
+            cI.border = thinBorder;
+
+            cG.font = font10Regular;
+            cG.alignment = alignLeft;
+            cH.font = font10Regular;
+            cH.alignment = alignCenter;
+            cI.font = fontThumb;
+            cI.alignment = alignCenter;
+
+            const pl = spData.assignments[`team-${tRight.teamKey}-pos-${p}`];
+            if (pl) {
+              cG.value = pl.name;
+              cH.value = pl.rank;
+              const status = getPlayerStatusForCurrentSpeeldag(pl.id);
+              cI.value = (ffType === 'zvd' || status === 'niet_spelend') ? 'N' : 'C';
+            }
+          }
+
+          const resRow = r + 1 + tRight.playerCount + 1;
+          const cFRes = ws.getCell(`F${resRow}`);
+          cFRes.value = 'Reserve:';
+          cFRes.font = font10Regular;
+          cFRes.border = thinBorder;
+
+          const cGRes = ws.getCell(`G${resRow}`);
+          const cHRes = ws.getCell(`H${resRow}`);
+          const cIRes = ws.getCell(`I${resRow}`);
+
+          cGRes.border = thinBorder;
+          cHRes.border = thinBorder;
+          cIRes.border = thinBorder;
+
+          cGRes.font = font10Regular;
+          cGRes.alignment = alignLeft;
+
+          if (isFF) {
+            cGRes.value = getForfeitText(tRight, ffType);
+          } else {
+            const res = spData.assignments[`team-${tRight.teamKey}-pos-res`];
+            if (res) {
+              cGRes.value = res.name;
+              cHRes.value = res.rank;
+            }
+          }
+        }
+      }
+
+      const fileName = `opstelling speeldag ${currentSpeeldag}.xlsx`;
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      initSpeeldagDropdown();
+      loadState();
+      await fetchTeams();
+    });
+  </script>
+</body>
+</html>

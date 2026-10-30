@@ -1,0 +1,1730 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=1920, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Live Uitslagen</title>
+
+    <style>
+      #liveUitslagenRoot {
+        --base-font-px: 18.4;
+        --layout-scale: 1;
+        font-size: calc(var(--base-font-px) * var(--layout-scale) * 1px);
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100vh;
+        overflow: hidden;
+        box-sizing: border-box;
+        position: relative;
+        background-color: #ccc;
+      }
+
+      #liveUitslagenRoot .grid-container {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        gap: 1px;
+        box-sizing: border-box;
+      }
+
+      #liveUitslagenRoot .grid-row-top {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        height: 50%;
+        gap: 1px;
+      }
+
+      #liveUitslagenRoot .grid-row-bottom {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        height: 50%;
+        gap: 1px;
+      }
+
+      #liveUitslagenRoot .grid-item {
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: sans-serif;
+        color: #333;
+        overflow: hidden;
+        position: relative;
+      }
+
+      #liveUitslagenRoot .grid-item,
+      #liveUitslagenRoot .grid-item * {
+        min-width: 0;
+      }
+
+      #liveUitslagenRoot .view-unified {
+        display: grid;
+        grid-template-rows: minmax(0, 0.78fr) minmax(0, 0.72fr) minmax(
+            0,
+            1.85fr
+          );
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      #liveUitslagenRoot .part-players {
+        border-bottom: 1px solid #ddd;
+        padding: 4px 6px 3px 6px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        overflow: hidden;
+      }
+
+      #liveUitslagenRoot .part-singles {
+        border-bottom: 1px solid #ddd;
+        padding: 3px 4px;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      #liveUitslagenRoot .part-merged-ranking {
+        padding: 2px 4px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        overflow: hidden;
+      }
+
+      #liveUitslagenRoot .live-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 1px;
+        margin-bottom: 0px;
+        width: 100%;
+        column-gap: 4px;
+      }
+
+      #liveUitslagenRoot .singles-4col-container {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+      }
+
+      #liveUitslagenRoot .singles-col {
+        display: grid;
+        grid-template-rows: repeat(4, 1fr);
+        row-gap: 1px;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 0 3px;
+        border-right: 1px solid #ddd;
+      }
+
+      #liveUitslagenRoot .singles-col:last-child {
+        border-right: none;
+      }
+
+      #liveUitslagenRoot .singles-row-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #f2f2f2;
+        padding: 0;
+        width: 100%;
+      }
+
+      #liveUitslagenRoot .singles-row-item:last-child {
+        border-bottom: none;
+      }
+
+      #liveUitslagenRoot .score-win {
+        color: #0a8f2e;
+        font-weight: bold;
+      }
+
+      #liveUitslagenRoot .score-loss {
+        color: #c00000;
+        font-weight: bold;
+      }
+
+      #liveUitslagenRoot .score-highlight-win {
+        background-color: #d4edda;
+        border-radius: 2px;
+        padding: 0 2px;
+      }
+
+      #liveUitslagenRoot .score-highlight-loss {
+        background-color: #f8d7da;
+        border-radius: 2px;
+        padding: 0 2px;
+      }
+
+      #liveUitslagenRoot .control-buttons {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        display: flex;
+        gap: 8px;
+        z-index: 9999;
+      }
+
+      #liveUitslagenRoot .control-btn {
+        width: 44px;
+        height: 44px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        text-decoration: none;
+      }
+
+      #liveUitslagenRoot .control-btn:hover {
+        background-color: rgba(0, 0, 0, 0.7);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      #liveUitslagenRoot .control-btn svg {
+        width: 24px;
+        height: 24px;
+        fill: white;
+      }
+
+      #liveUitslagenRoot .grid-col-player-stats {
+        display: grid;
+        grid-template-columns: 1.1em minmax(0, 1fr) 1.5em 1.8em;
+        column-gap: 0.25em;
+      }
+
+      #liveUitslagenRoot .grid-col-player-basic {
+        display: grid;
+        grid-template-columns: 1.1em minmax(0, 1fr) 1.5em;
+        column-gap: 0.25em;
+      }
+
+      #liveUitslagenRoot .grid-col-merged-rank {
+        display: grid;
+        grid-template-columns: 1.3em minmax(0, 1.25fr) minmax(0, 1.4fr) 1.5em;
+        align-items: center;
+        column-gap: 0.25em;
+        line-height: 1.15;
+      }
+
+      #liveUitslagenRoot .scroll-block {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
+      #liveUitslagenRoot .text-left {
+        text-align: left;
+      }
+      #liveUitslagenRoot .text-right {
+        text-align: right;
+      }
+      #liveUitslagenRoot .text-center {
+        text-align: center;
+      }
+      #liveUitslagenRoot .text-ellipsis {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #liveUitslagenRoot .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+      #liveUitslagenRoot .fw-bold {
+        font-weight: 700;
+      }
+      #liveUitslagenRoot .color-zandvoorde {
+        color: #c00000;
+      }
+      #liveUitslagenRoot .color-highlight {
+        color: #0a8f2e;
+      }
+      #liveUitslagenRoot .color-muted {
+        color: #777;
+      }
+      #liveUitslagenRoot .border-bottom {
+        border-bottom: 1px solid #ddd;
+      }
+      #liveUitslagenRoot .border-bottom-eee {
+        border-bottom: 1px solid #eee;
+      }
+      #liveUitslagenRoot .p-0 {
+        padding: 0;
+      }
+      #liveUitslagenRoot .pt-4 {
+        padding-top: 4px;
+      }
+      #liveUitslagenRoot .ws-nowrap {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="liveUitslagenRoot">
+      <div class="grid-container" id="gridContainer">
+        <div class="grid-row-top">
+          <div class="grid-item" data-team="A">A</div>
+          <div class="grid-item" data-team="B">B</div>
+          <div class="grid-item" data-team="C">C</div>
+          <div class="grid-item" data-team="D">D</div>
+          <div class="grid-item" data-team="E">E</div>
+        </div>
+        <div class="grid-row-bottom">
+          <div class="grid-item" data-team="F">F</div>
+          <div class="grid-item" data-team="G">G</div>
+          <div class="grid-item" data-team="H">H</div>
+          <div class="grid-item" data-team="I">I</div>
+          <div class="grid-item" data-team="J">J</div>
+          <div class="grid-item" data-team="K">K</div>
+        </div>
+      </div>
+
+      <div class="control-buttons">
+        <a
+          class="control-btn"
+          href="https://www.ttczandvoorde.be"
+          title="Terug naar website"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+          </svg>
+        </a>
+        <button class="control-btn" id="fullscreenBtn" title="Fullscreen (F11)">
+          <svg
+            id="fullscreenIcon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+            />
+          </svg>
+          <svg
+            id="exitFullscreenIcon"
+            style="display: none"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <script>
+        function formatName(name) {
+          const str = String(name || "")
+            .trim()
+            .toLowerCase();
+          return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+        const SOAP_ENDPOINT = "https://api.vttl.be/index.php?s=vttl";
+        const STANDINGS_HIGHLIGHT_KEY = "vttl-standings-highlight-v1";
+
+        const MATCHES_POLL_INTERVAL_MS = 10 * 1000;
+        const TEAM_CACHE_MS = 60 * 60 * 1000;
+        const MATCH_FETCH_DAYS_BACK = 5;
+        const MATCH_FETCH_DAYS_FORWARD = 56;
+        const HOURLY_REFRESH_MS = 60 * 60 * 1000;
+        const LATE_NIGHT_REFRESH_MS = 60 * 1000;
+        const SINGLES_HIGHLIGHT_MS = 2 * 60 * 1000;
+        const MATCH_SCORE_HIGHLIGHT_MS = 60 * 1000;
+        const EXPECTED_RANKING_TEAMS = 12;
+
+        const TEAMS_LIST = [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+        ];
+
+        const DESIGN_WIDTH = 1920;
+        const DESIGN_HEIGHT = 1080;
+        const MIN_LAYOUT_SCALE = 0.4;
+        const MAX_LAYOUT_SCALE = 1.15;
+
+        let standingsRefreshInProgress = false;
+        let matchesRefreshInProgress = false;
+        let standingsRefreshTimeoutId = null;
+        let matchesRefreshIntervalId = null;
+
+        let cachedClubTeams = null;
+        let cachedClubTeamsFetchedAt = 0;
+
+        let previousStandingsByLetter = {};
+        let previousSinglesByLetter = {};
+        let singlesHighlightUntil = {};
+        let previousMatchScoresByLetter = {};
+        let matchScoreHighlightUntil = {};
+        let standingsHighlightByLetter = {};
+        let currentOpponentByLetter = {};
+        let lastRankingByLetter = {};
+        let lastMatchesDataByLetter = {};
+        let autoFullscreenAttempted = false;
+
+        const rootEl = document.getElementById("liveUitslagenRoot");
+        const fullscreenBtn = rootEl?.querySelector("#fullscreenBtn");
+        const fullscreenIcon = rootEl?.querySelector("#fullscreenIcon");
+        const exitFullscreenIcon = rootEl?.querySelector("#exitFullscreenIcon");
+
+        function getGridElement() {
+          return rootEl?.querySelector("#gridContainer") || null;
+        }
+
+        function getTeamElement(letter) {
+          return (
+            rootEl?.querySelector(`.grid-item[data-team="${letter}"]`) || null
+          );
+        }
+
+        function getRefreshIntervalMs() {
+          const hour = new Date().getHours();
+          return hour >= 23 ? LATE_NIGHT_REFRESH_MS : HOURLY_REFRESH_MS;
+        }
+
+        function getTodayKey() {
+          const now = new Date();
+          const y = now.getFullYear();
+          const m = String(now.getMonth() + 1).padStart(2, "0");
+          const d = String(now.getDate()).padStart(2, "0");
+          return `${y}-${m}-${d}`;
+        }
+
+        function loadStandingsHighlightState() {
+          try {
+            const raw = localStorage.getItem(STANDINGS_HIGHLIGHT_KEY);
+            if (!raw) {
+              standingsHighlightByLetter = {};
+              return;
+            }
+            const parsed = JSON.parse(raw);
+            standingsHighlightByLetter =
+              parsed?.date === getTodayKey() ? parsed.highlights || {} : {};
+          } catch {
+            standingsHighlightByLetter = {};
+          }
+        }
+
+        function saveStandingsHighlightState() {
+          try {
+            localStorage.setItem(
+              STANDINGS_HIGHLIGHT_KEY,
+              JSON.stringify({
+                date: getTodayKey(),
+                highlights: standingsHighlightByLetter,
+              }),
+            );
+          } catch {}
+        }
+
+        function parseApiDate(dateString) {
+          if (!dateString) return null;
+          const parts = dateString.split("-").map(Number);
+          if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+          return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+        }
+
+        function formatApiDate(date) {
+          const y = date.getFullYear();
+          const m = String(date.getMonth() + 1).padStart(2, "0");
+          const d = String(date.getDate()).padStart(2, "0");
+          return `${y}-${m}-${d}`;
+        }
+
+        function getMatchFetchDateWindow() {
+          const now = new Date();
+          const from = new Date(now);
+          const to = new Date(now);
+          from.setDate(from.getDate() - MATCH_FETCH_DAYS_BACK);
+          to.setDate(to.getDate() + MATCH_FETCH_DAYS_FORWARD);
+          return { from: formatApiDate(from), to: formatApiDate(to) };
+        }
+
+        function normalizeScore(score) {
+          const cleaned = String(score || "").trim();
+          if (!cleaned) return "0-0";
+          const normalized = cleaned.replace(/\s*[-:]\s*/, "-");
+          return normalized === "-" ? "0-0" : normalized;
+        }
+
+        function formatOrdinal(numericValue) {
+          const n = Number.parseInt(numericValue, 10);
+          if (!Number.isFinite(n)) return "";
+          return n === 1 ? "1ste" : `${n}de`;
+        }
+
+        function formatDivisionName(divisionName) {
+          const trimmed = String(divisionName || "").trim();
+          if (!trimmed) return "";
+
+          const normalized = trimmed
+            .replace(/[\u2013\u2014]/g, "-")
+            .replace(/\s*-\s*/g, " - ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          if (/^regionvttl$/i.test(normalized)) return "Landelijke";
+
+          const reeksMatch = normalized.match(/reeks\s*([a-z])/i);
+          const afdelingMatch = normalized.match(/afdeling\s*(\d+)\s*([a-z])/i);
+
+          if (reeksMatch && /regionvttl/i.test(normalized)) {
+            return `Landelijke ${reeksMatch[1].toUpperCase()}`;
+          }
+
+          if (afdelingMatch) {
+            const level = formatOrdinal(afdelingMatch[1]);
+            const reeksLetter = afdelingMatch[2].toUpperCase();
+            if (/nationaal/i.test(normalized))
+              return `${level} nationale ${reeksLetter}`;
+            if (/\bprov\b|\bprovinciaal\b|\bprovinciale\b/i.test(normalized))
+              return `${level} provinciale ${reeksLetter}`;
+            if (/regionvttl/i.test(normalized))
+              return `Landelijke ${reeksLetter}`;
+          }
+
+          return normalized;
+        }
+
+        function getErrorMessage(error) {
+          if (error instanceof Error) return error.message || String(error);
+          try {
+            return JSON.stringify(error);
+          } catch {
+            return String(error);
+          }
+        }
+
+        function normalizeTeamName(teamName) {
+          let cleaned = String(teamName || "").trim();
+
+          cleaned = cleaned
+            .replace(/\bde\s+woudpalet\s+houthulst\b/gi, "Houthulst")
+            .replace(/\bde\s+woudpalet\b/gi, "Houthulst")
+            .replace(/\bthe\s+charlies\b/gi, "Wenduine")
+            .replace(/\betoile\s+basse[- ]sambre\b/gi, "E.B.S.")
+            .replace(/\bcaj[- ]mir\b/gi, "CAJ-MIR");
+
+          const prefixes = [
+            /\b(koninklijke|kon\.?)\b/gi,
+            /\bK\.?\s*T\.?\s*T\.?\s*C\.?\b/gi,
+            /\bT\.?\s*T\.?\s*C\.?\b/gi,
+            /\bC\.?\s*T\.?\s*T\.?\b/gi,
+            /\bT\.?\s*T\.?\b/gi,
+            /\bK\.?\s*T\.?\s*T\.?\s*V\.?\b/gi,
+            /\bT\.?\s*T\.?\s*V\.?\b/gi,
+            /\bT\.?\s*T\.?\s*K\.?\b/gi,
+            /\bT\.?\s*T\.?\s*W\.?\b/gi,
+            /\bwoudpalet\b/gi,
+            /\bvzw\b/gi,
+          ];
+
+          for (const p of prefixes) {
+            cleaned = cleaned.replace(p, " ");
+          }
+
+          const badWords = [
+            "wallfin\\s+etoile",
+            "st-ghislain",
+            "spotit",
+            "spoti",
+            "heist",
+            "smash",
+            "jong",
+            "dino",
+            "drive",
+            "eendracht",
+            "omnisport",
+            "zwevegem",
+            "bhw",
+            "asbl",
+            "rctt",
+            "royal",
+            "roeselare",
+            "kortrijk",
+            "af",
+          ];
+
+          const wordPattern = new RegExp(
+            `\\b(?:${badWords.join("|")})\\b`,
+            "gi",
+          );
+          cleaned = cleaned.replace(wordPattern, " ");
+
+          cleaned = cleaned
+            .replace(/\s*[-_/]\s*/g, " ")
+            .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+
+          return cleaned;
+        }
+
+        function isTeamLetterMatch(teamName, letter) {
+          const raw = String(teamName || "").trim();
+          const wanted = String(letter || "")
+            .trim()
+            .toUpperCase();
+          if (raw.toUpperCase() === wanted) return true;
+          const parts = raw.split(/\s+/);
+          return parts[parts.length - 1].toUpperCase() === wanted;
+        }
+
+        function isSameTeam(name1, name2) {
+          if (!name1 || !name2) return false;
+
+          const clean = (s) =>
+            String(s || "")
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/\b([a-z])\.\s*(?=[a-z]\.)/g, "$1")
+              .replace(/\./g, "")
+              .replace(/[-_/]/g, " ")
+              .replace(
+                /\b(koninklijke|kon|kttc|ttc|ctt|ttv|ttk|ttw|rctt|royal|vzw|asbl)\b/g,
+                " ",
+              )
+              .replace(/\b(sint|st|ste)\b/g, "st")
+              .replace(/\b(de|het|la|le|les|the)\b/g, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+
+          const a = clean(name1);
+          const b = clean(name2);
+
+          if (a === b) return true;
+
+          const partsA = a.split(/\s+/);
+          const partsB = b.split(/\s+/);
+
+          const letterA = partsA[partsA.length - 1].toUpperCase();
+          const letterB = partsB[partsB.length - 1].toUpperCase();
+          if (letterA !== letterB) return false;
+
+          const clubA = partsA.slice(0, -1).join(" ").trim();
+          const clubB = partsB.slice(0, -1).join(" ").trim();
+
+          if (!clubA || !clubB) return false;
+
+          const isZandA = clubA.includes("zandvoorde");
+          const isZandB = clubB.includes("zandvoorde");
+          if (isZandA !== isZandB) return false;
+
+          const aliasGroups = [
+            ["kortrijk", "atanis"],
+            ["roeselare", "paletje"],
+            ["leie", "lauwe"],
+            ["houthulst", "woudpalet"],
+            ["heist", "knokke"],
+            ["wenduine", "charlies"],
+            ["ebs", "etoile", "sambre", "basse"],
+            ["arc", "ciel"],
+            ["caj", "mir", "ghislain"],
+          ];
+
+          for (const group of aliasGroups) {
+            const hasA = group.some((alias) => clubA.includes(alias));
+            const hasB = group.some((alias) => clubB.includes(alias));
+            if (hasA && hasB) return true;
+          }
+
+          if (
+            clubA === clubB ||
+            clubA.includes(clubB) ||
+            clubB.includes(clubA)
+          ) {
+            return true;
+          }
+
+          const stopWords = new Set(["st", "der", "den", "van", "en"]);
+          const wordsA = clubA
+            .split(" ")
+            .filter((w) => w.length > 2 && !stopWords.has(w));
+          const wordsB = clubB
+            .split(" ")
+            .filter((w) => w.length > 2 && !stopWords.has(w));
+          if (wordsA.some((w) => wordsB.includes(w))) {
+            return true;
+          }
+
+          return false;
+        }
+
+        function getOpponentTeamName(match, teamLetter) {
+          if (!match) return null;
+          const isHome =
+            match.homeClub === "WVL109" &&
+            isTeamLetterMatch(match.homeTeam, teamLetter);
+          const rawOpponent = isHome ? match.awayTeam : match.homeTeam;
+          return normalizeTeamName(rawOpponent) || null;
+        }
+
+        function getMatchDedupKey(match) {
+          const safeMatch =
+            match && typeof match === "object" ? match : Object.create(null);
+          return [
+            String(safeMatch.date || "").trim(),
+            String(safeMatch.homeClub || "").trim(),
+            String(safeMatch.homeTeam || "")
+              .trim()
+              .toUpperCase(),
+            String(safeMatch.awayClub || "").trim(),
+            String(safeMatch.awayTeam || "")
+              .trim()
+              .toUpperCase(),
+          ].join("|");
+        }
+
+        function dedupeMatches(matches) {
+          const seen = new Set();
+          const unique = [];
+          for (const match of matches || []) {
+            if (!match || typeof match !== "object") continue;
+            const key = getMatchDedupKey(match);
+            if (!seen.has(key)) {
+              seen.add(key);
+              unique.push(match);
+            }
+          }
+          return unique;
+        }
+
+        function isSinglePlayed(single) {
+          if (!single || typeof single !== "object") return false;
+          const homeSets = Number.parseInt(single.homeSetCount ?? "0", 10) || 0;
+          const awaySets = Number.parseInt(single.awaySetCount ?? "0", 10) || 0;
+          return homeSets > 0 || awaySets > 0;
+        }
+
+        function getUpcomingWeekMatches(matches) {
+          const reference = new Date();
+          const candidates = dedupeMatches(matches)
+            .map((match) => ({
+              ...match,
+              parsedDate: parseApiDate(match.date),
+              completed:
+                String(match.isCompleted).toLowerCase() === "true" ||
+                String(match.isCompleted) === "1",
+            }))
+            .filter((match) => match.parsedDate)
+            .sort((a, b) => a.parsedDate - b.parsedDate);
+
+          const recentMatches = candidates.filter(
+            (match) => match.parsedDate <= reference,
+          );
+          const mostRecentMatch = recentMatches[recentMatches.length - 1];
+
+          if (mostRecentMatch) {
+            const daysDiff =
+              (reference - mostRecentMatch.parsedDate) / (1000 * 60 * 60 * 24);
+            if (daysDiff <= 4) {
+              return candidates.filter(
+                (match) => match.weekName === mostRecentMatch.weekName,
+              );
+            }
+          }
+
+          const next = candidates.find(
+            (match) => match.parsedDate >= reference && !match.completed,
+          );
+          if (!next) return [];
+
+          return candidates
+            .filter((match) => match.weekName === next.weekName)
+            .sort((a, b) => a.parsedDate - b.parsedDate);
+        }
+
+        function getNextTeamMatchdays(matches, teamLetter, count = 5) {
+          const reference = new Date();
+          return dedupeMatches(matches)
+            .map((match) => ({
+              ...match,
+              parsedDate: parseApiDate(match.date),
+              completed:
+                String(match.isCompleted).toLowerCase() === "true" ||
+                String(match.isCompleted) === "1",
+            }))
+            .filter((match) => {
+              if (
+                !match.parsedDate ||
+                match.completed ||
+                match.parsedDate < reference
+              )
+                return false;
+              const homeIsOurTeam =
+                match.homeClub === "WVL109" &&
+                isTeamLetterMatch(match.homeTeam, teamLetter);
+              const awayIsOurTeam =
+                match.awayClub === "WVL109" &&
+                isTeamLetterMatch(match.awayTeam, teamLetter);
+              return homeIsOurTeam || awayIsOurTeam;
+            })
+            .sort((a, b) => a.parsedDate - b.parsedDate)
+            .slice(0, count);
+        }
+
+        function getCurrentTeamMatch(matches, teamLetter) {
+          const reference = new Date();
+          const dayOfWeek = reference.getDay();
+          const showRecentMatch = dayOfWeek >= 6 || dayOfWeek <= 2;
+
+          const allTeamMatches = dedupeMatches(matches)
+            .map((match) => ({
+              ...match,
+              parsedDate: parseApiDate(match.date),
+            }))
+            .filter((match) => {
+              if (!match.parsedDate) return false;
+              const homeIsOurTeam =
+                match.homeClub === "WVL109" &&
+                isTeamLetterMatch(match.homeTeam, teamLetter);
+              const awayIsOurTeam =
+                match.awayClub === "WVL109" &&
+                isTeamLetterMatch(match.awayTeam, teamLetter);
+              return homeIsOurTeam || awayIsOurTeam;
+            });
+
+          if (showRecentMatch) {
+            const pastMatches = allTeamMatches
+              .filter((match) => match.parsedDate <= reference)
+              .sort((a, b) => b.parsedDate - a.parsedDate);
+
+            const recentMatch = pastMatches[0];
+            if (recentMatch) {
+              const daysDiff =
+                (reference - recentMatch.parsedDate) / (1000 * 60 * 60 * 24);
+              if (daysDiff <= 4) return recentMatch;
+            }
+          }
+
+          const futureMatches = allTeamMatches
+            .filter((match) => match.parsedDate >= reference)
+            .sort((a, b) => a.parsedDate - b.parsedDate);
+
+          return futureMatches[0] || null;
+        }
+
+        function buildStandingsSnapshot(entries) {
+          const snapshot = {};
+          for (const entry of entries) {
+            snapshot[entry.teamName] = String(entry.points);
+          }
+          return snapshot;
+        }
+
+        function updateStandingsHighlightState(letter, entries) {
+          const nextSnapshot = buildStandingsSnapshot(entries);
+          const prevSnapshot = previousStandingsByLetter[letter];
+
+          if (prevSnapshot) {
+            if (!standingsHighlightByLetter[letter])
+              standingsHighlightByLetter[letter] = {};
+            for (const [teamName, points] of Object.entries(nextSnapshot)) {
+              if (
+                Object.prototype.hasOwnProperty.call(prevSnapshot, teamName) &&
+                prevSnapshot[teamName] !== points
+              ) {
+                standingsHighlightByLetter[letter][teamName] = true;
+              }
+            }
+            saveStandingsHighlightState();
+          }
+          previousStandingsByLetter[letter] = nextSnapshot;
+        }
+
+        function buildSinglesSnapshot(match, teamLetter) {
+          const base = Array.from({ length: 16 }, () => "-|0-0");
+          if (!match) return base;
+
+          const isHome =
+            match.homeClub === "WVL109" &&
+            isTeamLetterMatch(match.homeTeam, teamLetter);
+          const singles = match.individualMatches || [];
+
+          for (let idx = 0; idx < 16; idx++) {
+            const pos = idx + 1;
+            const single = singles.find((s) => s.position === pos);
+            if (!single) continue;
+
+            const ourPos = isHome
+              ? single.homePlayerIndex
+              : single.awayPlayerIndex;
+            const oppPos = isHome
+              ? single.awayPlayerIndex
+              : single.homePlayerIndex;
+            const score = isHome
+              ? `${single.homeSetCount}-${single.awaySetCount}`
+              : `${single.awaySetCount}-${single.homeSetCount}`;
+            base[idx] = `${ourPos}-${oppPos}|${score}`;
+          }
+
+          return base;
+        }
+
+        function updateSinglesHighlightState(letter, currentMatch) {
+          const now = Date.now();
+          const nextSnapshot = buildSinglesSnapshot(currentMatch, letter);
+          const prevSnapshot = previousSinglesByLetter[letter];
+
+          if (prevSnapshot) {
+            if (!singlesHighlightUntil[letter])
+              singlesHighlightUntil[letter] = {};
+            for (let i = 0; i < nextSnapshot.length; i++) {
+              if (prevSnapshot[i] !== nextSnapshot[i]) {
+                singlesHighlightUntil[letter][i + 1] =
+                  now + SINGLES_HIGHLIGHT_MS;
+              }
+            }
+          }
+          previousSinglesByLetter[letter] = nextSnapshot;
+        }
+
+        function updateMatchScoresHighlightState(
+          letter,
+          currentMatch,
+          upcomingMatches,
+        ) {
+          const now = Date.now();
+          const allMatches = dedupeMatches([
+            ...(Array.isArray(upcomingMatches) ? upcomingMatches : []),
+            ...(currentMatch ? [currentMatch] : []),
+          ]);
+
+          const nextSnapshot = {};
+          for (const m of allMatches) {
+            const key = getMatchDedupKey(m);
+            const score = m.detailsCreated
+              ? `${m.homeScore}-${m.awayScore}`
+              : normalizeScore(m.score);
+            nextSnapshot[key] = score;
+          }
+
+          const prevSnapshot = previousMatchScoresByLetter[letter];
+          if (prevSnapshot) {
+            if (!matchScoreHighlightUntil[letter]) {
+              matchScoreHighlightUntil[letter] = {};
+            }
+            for (const [key, score] of Object.entries(nextSnapshot)) {
+              if (
+                prevSnapshot[key] !== undefined &&
+                prevSnapshot[key] !== score
+              ) {
+                matchScoreHighlightUntil[letter][key] =
+                  now + MATCH_SCORE_HIGHLIGHT_MS;
+              }
+            }
+          }
+          previousMatchScoresByLetter[letter] = nextSnapshot;
+        }
+
+        function getElementsByLocalName(root, localName) {
+          return Array.from(root.getElementsByTagName("*")).filter(
+            (node) => node.localName === localName,
+          );
+        }
+
+        function getDirectChildText(element, tagName, fallback = "") {
+          const directChild = Array.from(element.children).find(
+            (child) => child.localName === tagName,
+          );
+          if (directChild?.textContent) return directChild.textContent.trim();
+          const descendant = getElementsByLocalName(element, tagName)[0];
+          return descendant?.textContent?.trim() || fallback;
+        }
+
+        async function callSoap(action, bodyXml) {
+          const envelope = `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tns="http://api.frenoy.net/TabTAPI">
+  <soap:Body>
+    ${bodyXml}
+  </soap:Body>
+</soap:Envelope>`;
+
+          const response = await fetch(SOAP_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "text/xml; charset=utf-8",
+              SOAPAction: action,
+            },
+            body: envelope,
+          });
+
+          if (!response.ok)
+            throw new Error(`SOAP ${action} failed: ${response.status}`);
+          return response.text();
+        }
+
+        async function fetchTeamsForClub(club) {
+          const xmlText = await callSoap(
+            "GetClubTeams",
+            `<tns:GetClubTeamsRequest><tns:Club>${club}</tns:Club></tns:GetClubTeamsRequest>`,
+          );
+
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+          const teamEntries = getElementsByLocalName(xmlDoc, "TeamEntries");
+          const teams = [];
+
+          for (const entry of teamEntries) {
+            teams.push({
+              teamId: getDirectChildText(entry, "TeamId"),
+              teamName: getDirectChildText(entry, "Team"),
+              divisionId: getDirectChildText(entry, "DivisionId"),
+              divisionCategory: getDirectChildText(entry, "DivisionCategory"),
+              divisionName: getDirectChildText(entry, "DivisionName"),
+            });
+          }
+          return teams;
+        }
+
+        async function fetchDivisionRanking(divisionId) {
+          const xmlText = await callSoap(
+            "GetDivisionRanking",
+            `<tns:GetDivisionRankingRequest><tns:DivisionId>${divisionId}</tns:DivisionId></tns:GetDivisionRankingRequest>`,
+          );
+
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+          const rankingEntries = getElementsByLocalName(
+            xmlDoc,
+            "RankingEntries",
+          );
+          const ranking = [];
+
+          for (const entry of rankingEntries) {
+            ranking.push({
+              teamName: getDirectChildText(entry, "Team"),
+              gw: getDirectChildText(entry, "GamesWon", "0"),
+              vw: getDirectChildText(entry, "GamesLost", "0"),
+              dw: getDirectChildText(entry, "GamesDraw", "0"),
+              ff: getDirectChildText(entry, "GamesWO", "0"),
+              points: getDirectChildText(entry, "Points", "0"),
+            });
+          }
+          return ranking;
+        }
+
+        async function fetchDivisionMatches(
+          divisionId,
+          withDetails = false,
+          dateFrom,
+          dateTo,
+        ) {
+          const yearDateFromXml = dateFrom
+            ? `<tns:YearDateFrom>${dateFrom}</tns:YearDateFrom>`
+            : "";
+          const yearDateToXml = dateTo
+            ? `<tns:YearDateTo>${dateTo}</tns:YearDateTo>`
+            : "";
+
+          const xmlText = await callSoap(
+            "GetMatches",
+            `<tns:GetMatchesRequest><tns:DivisionId>${divisionId}</tns:DivisionId>${yearDateFromXml}${yearDateToXml}<tns:WithDetails>${withDetails}</tns:WithDetails></tns:GetMatchesRequest>`,
+          );
+
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+          const matchEntries = getElementsByLocalName(
+            xmlDoc,
+            "TeamMatchesEntries",
+          );
+          const matches = [];
+
+          for (const entry of matchEntries) {
+            const details = getElementsByLocalName(entry, "MatchDetails")[0];
+            let homePlayers = [];
+            let awayPlayers = [];
+            let individualMatches = [];
+
+            if (details) {
+              const homePlayersNode = getElementsByLocalName(
+                details,
+                "HomePlayers",
+              )[0];
+              if (homePlayersNode) {
+                const playersNodes = getElementsByLocalName(
+                  homePlayersNode,
+                  "Players",
+                );
+                homePlayers = playersNodes.map((player) => ({
+                  position: Number(getDirectChildText(player, "Position", "0")),
+                  firstName: getDirectChildText(player, "FirstName"),
+                  ranking: getDirectChildText(player, "Ranking"),
+                  victoryCount: Number(
+                    getDirectChildText(player, "VictoryCount", "0"),
+                  ),
+                  isForfeited:
+                    getDirectChildText(player, "IsForfeited", "false") ===
+                    "true",
+                }));
+              }
+
+              const awayPlayersNode = getElementsByLocalName(
+                details,
+                "AwayPlayers",
+              )[0];
+              if (awayPlayersNode) {
+                const playersNodes = getElementsByLocalName(
+                  awayPlayersNode,
+                  "Players",
+                );
+                awayPlayers = playersNodes.map((player) => ({
+                  position: Number(getDirectChildText(player, "Position", "0")),
+                  firstName: getDirectChildText(player, "FirstName"),
+                  ranking: getDirectChildText(player, "Ranking"),
+                  victoryCount: Number(
+                    getDirectChildText(player, "VictoryCount", "0"),
+                  ),
+                  isForfeited:
+                    getDirectChildText(player, "IsForfeited", "false") ===
+                    "true",
+                }));
+              }
+
+              const singleMatchesNodes = getElementsByLocalName(
+                details,
+                "IndividualMatchResults",
+              );
+              individualMatches = singleMatchesNodes.map((single) => ({
+                position: Number(getDirectChildText(single, "Position", "0")),
+                homePlayerIndex: Number(
+                  getDirectChildText(single, "HomePlayerMatchIndex", "0"),
+                ),
+                awayPlayerIndex: Number(
+                  getDirectChildText(single, "AwayPlayerMatchIndex", "0"),
+                ),
+                homeSetCount: getDirectChildText(single, "HomeSetCount", "0"),
+                awaySetCount: getDirectChildText(single, "AwaySetCount", "0"),
+              }));
+            }
+
+            matches.push({
+              matchId: getDirectChildText(entry, "MatchId"),
+              weekName: getDirectChildText(entry, "WeekName"),
+              date: getDirectChildText(entry, "Date"),
+              homeClub: getDirectChildText(entry, "HomeClub"),
+              homeTeam: getDirectChildText(entry, "HomeTeam"),
+              awayClub: getDirectChildText(entry, "AwayClub"),
+              awayTeam: getDirectChildText(entry, "AwayTeam"),
+              score: getDirectChildText(entry, "Score", "0 - 0"),
+              isCompleted: getDirectChildText(entry, "IsCompleted", "false"),
+              isHomeForfeited:
+                getDirectChildText(entry, "IsHomeForfeited", "false") ===
+                "true",
+              isAwayForfeited:
+                getDirectChildText(entry, "IsAwayForfeited", "false") ===
+                "true",
+              detailsCreated:
+                getDirectChildText(
+                  details || entry,
+                  "DetailsCreated",
+                  "false",
+                ) === "true",
+              homeScore: getDirectChildText(details || entry, "HomeScore", "0"),
+              awayScore: getDirectChildText(details || entry, "AwayScore", "0"),
+              homePlayers,
+              awayPlayers,
+              individualMatches,
+            });
+          }
+          return matches;
+        }
+
+        async function fetchTeamsForClubCached(club) {
+          const now = Date.now();
+          if (
+            cachedClubTeams &&
+            now - cachedClubTeamsFetchedAt < TEAM_CACHE_MS
+          ) {
+            return cachedClubTeams;
+          }
+          const teams = await fetchTeamsForClub(club);
+          cachedClubTeams = teams;
+          cachedClubTeamsFetchedAt = now;
+          return teams;
+        }
+
+        function buildMergedRankingHtml(
+          entries,
+          letter,
+          divisionName,
+          currentMatch,
+          upcomingMatches,
+        ) {
+          const opponentName = currentOpponentByLetter[letter] || null;
+          const allMatches = dedupeMatches([
+            ...(Array.isArray(upcomingMatches) ? upcomingMatches : []),
+            ...(currentMatch ? [currentMatch] : []),
+          ]);
+
+          const getFullMatchTeamName = (clubCode, teamStr) => {
+            const raw = String(teamStr || "").trim();
+            if (
+              clubCode === "WVL109" &&
+              !raw.toLowerCase().includes("zandvoorde")
+            ) {
+              return `Zandvoorde ${raw}`;
+            }
+            return raw;
+          };
+
+          const rankingRows = (entries || [])
+            .map((entry, index) => {
+              const displayName = normalizeTeamName(entry.teamName);
+              const changedToday = Boolean(
+                standingsHighlightByLetter?.[letter]?.[entry.teamName],
+              );
+              const isZandvoorde = displayName
+                .toLowerCase()
+                .includes("zandvoorde");
+              const isOpponent =
+                isSameTeam(entry.teamName, opponentName) ||
+                isSameTeam(displayName, opponentName);
+              const rowStyle = changedToday ? "color-highlight fw-bold" : "";
+
+              let teamNameStyle = "";
+              if (!changedToday && isZandvoorde)
+                teamNameStyle = "color-zandvoorde fw-bold";
+              if (isOpponent) teamNameStyle = `${teamNameStyle} fw-bold`.trim();
+
+              const activeMatch = allMatches.find((m) => {
+                const hName = getFullMatchTeamName(m.homeClub, m.homeTeam);
+                const aName = getFullMatchTeamName(m.awayClub, m.awayTeam);
+                return (
+                  isSameTeam(hName, entry.teamName) ||
+                  isSameTeam(aName, entry.teamName)
+                );
+              });
+
+              let matchInfo = "-";
+              let isMatchHighlighted = false;
+
+              if (activeMatch) {
+                const hName = getFullMatchTeamName(
+                  activeMatch.homeClub,
+                  activeMatch.homeTeam,
+                );
+                const aName = getFullMatchTeamName(
+                  activeMatch.awayClub,
+                  activeMatch.awayTeam,
+                );
+                const isHomeSide = isSameTeam(hName, entry.teamName);
+                if (isHomeSide) {
+                  const oppClub = normalizeTeamName(aName);
+                  const score = activeMatch.detailsCreated
+                    ? `${activeMatch.homeScore}-${activeMatch.awayScore}`
+                    : normalizeScore(activeMatch.score);
+                  matchInfo = `${score} ${oppClub}`;
+
+                  const matchKey = getMatchDedupKey(activeMatch);
+                  const highlightUntil =
+                    matchScoreHighlightUntil?.[letter]?.[matchKey] || 0;
+                  isMatchHighlighted = highlightUntil > Date.now();
+                }
+              }
+
+              const matchInfoStyle = isMatchHighlighted
+                ? "color-highlight fw-bold"
+                : "color-muted";
+
+              return `<div class="grid-col-merged-rank border-bottom-eee ${rowStyle}">
+                <span class="text-right tabular-nums">${index + 1}.</span>
+                <span class="text-left text-ellipsis ${teamNameStyle}">${displayName}</span>
+                <span class="text-left text-ellipsis ${matchInfoStyle} tabular-nums" style="padding-left:4px;">${matchInfo}</span>
+                <strong class="text-right tabular-nums">${entry.points}</strong>
+              </div>`;
+            })
+            .join("");
+
+          const formattedDivisionName = formatDivisionName(divisionName);
+          const divisionHeader = formattedDivisionName
+            ? `<div class="text-center text-ellipsis fw-bold border-bottom" style="font-size:0.83em;line-height:1.15;padding-bottom:1px;margin-bottom:2px;">${formattedDivisionName}</div>`
+            : "";
+
+          const placeholderCount = Math.max(
+            0,
+            EXPECTED_RANKING_TEAMS - (entries?.length || 0),
+          );
+          const placeholderRows = Array.from(
+            { length: placeholderCount },
+            (_, index) => {
+              const pos = (entries?.length || 0) + index + 1;
+              return `<div aria-hidden="true" class="grid-col-merged-rank border-bottom-eee" style="visibility:hidden;"><span class="text-right tabular-nums">${pos}.</span><span>-</span><span class="text-left">-</span><strong>0</strong></div>`;
+            },
+          ).join("");
+
+          return `<div class="scroll-block" style="font-size:1em;line-height:1.15;">${divisionHeader}${rankingRows}${placeholderRows}</div>`;
+        }
+
+        function renderUnifiedView(letter, match, matchData, rankingData) {
+          const isHome =
+            match?.homeClub === "WVL109" &&
+            isTeamLetterMatch(match?.homeTeam || "", letter);
+          const rawOpponent = isHome ? match?.awayTeam : match?.homeTeam;
+          const opponent = rawOpponent ? normalizeTeamName(rawOpponent) : "";
+
+          const ourTeamName = `<span class="color-zandvoorde fw-bold">${letter}</span>`;
+          const title = opponent
+            ? isHome
+              ? `${ourTeamName} - ${opponent}`
+              : `${opponent} - ${ourTeamName}`
+            : ourTeamName;
+
+          const ourPlayers =
+            (isHome ? match?.homePlayers : match?.awayPlayers) || [];
+          const oppPlayers =
+            (isHome ? match?.awayPlayers : match?.homePlayers) || [];
+          const singles = match?.individualMatches || [];
+          const playedSingles = singles.filter((s) => isSinglePlayed(s));
+
+          const buildRows = (players, isHomeSide) => {
+            const isOurTeam = isHomeSide === isHome;
+            return Array.from({ length: 4 }, (_, idx) => {
+              const pos = idx + 1;
+              const p = players.find((pl) => pl.position === pos);
+              const displayName = p
+                ? formatName(p.firstName).slice(0, 7)
+                : `Speler ${pos}`;
+              const ranking = p?.ranking || "-";
+
+              if (isOurTeam) {
+                const wins = p ? p.victoryCount : 0;
+                const pIdx = isHomeSide ? "homePlayerIndex" : "awayPlayerIndex";
+                const played = playedSingles.filter(
+                  (s) => Number(s?.[pIdx]) === pos,
+                ).length;
+                const statsText = p?.isForfeited ? "FF" : `${wins}/${played}`;
+                return `<div class="grid-col-player-stats p-0"><span class="tabular-nums fw-bold color-muted">${pos}.</span><span class="text-ellipsis">${displayName}</span><span class="text-right">${ranking}</span><span class="text-right tabular-nums">${statsText}</span></div>`;
+              }
+
+              return `<div class="grid-col-player-basic p-0"><span class="tabular-nums fw-bold color-muted">${pos}.</span><span class="text-ellipsis">${displayName}</span><span class="text-right">${ranking}</span></div>`;
+            }).join("");
+          };
+
+          const homeRows = buildRows(isHome ? ourPlayers : oppPlayers, true);
+          const awayRows = buildRows(isHome ? oppPlayers : ourPlayers, false);
+          const columnTemplate = isHome ? "58% 42%" : "42% 58%";
+          let totalScore = "0-0";
+          if (match) {
+            if (match.isHomeForfeited) {
+              totalScore = "FF 0-16";
+            } else if (match.isAwayForfeited) {
+              totalScore = "FF 16-0";
+            } else if (match.detailsCreated) {
+              totalScore = `${match.homeScore}-${match.awayScore}`;
+            } else {
+              totalScore = normalizeScore(match.score);
+            }
+          }
+
+          const part1Html = `
+            <div class="part-players" style="font-size:1.05em;line-height:1.15;">
+              <div class="live-header">
+                <div class="text-center text-ellipsis fw-bold ws-nowrap" style="font-size:1.08em;">${title}</div>
+                <div class="text-right fw-bold tabular-nums ws-nowrap" style="font-size:1.15em;">${totalScore}</div>
+              </div>
+              <div style="display:grid;grid-template-columns:${columnTemplate};column-gap:4px;margin-top:0px;">
+                <div style="border-right:1px solid #ddd;padding-right:4px;">
+                  ${homeRows}
+                </div>
+                <div style="padding-left:4px;">
+                  ${awayRows}
+                </div>
+              </div>
+            </div>`;
+
+          let singlesColumnsHtml = "";
+          for (let col = 0; col < 4; col++) {
+            let colRowsHtml = "";
+            for (let row = 0; row < 4; row++) {
+              const pos = col * 4 + row + 1;
+              const single = singles.find((s) => s.position === pos);
+              const activeUntil = singlesHighlightUntil?.[letter]?.[pos] || 0;
+              const isHighlighted = activeUntil > Date.now();
+              const rowStyle = isHighlighted ? "color-highlight fw-bold" : "";
+
+              if (!single) {
+                colRowsHtml += `
+                  <div class="singles-row-item ${rowStyle}">
+                    <span class="color-muted tabular-nums">-</span>
+                    <span class="text-right color-muted tabular-nums ws-nowrap">0-0</span>
+                  </div>`;
+              } else {
+                const ourSets =
+                  Number(isHome ? single.homeSetCount : single.awaySetCount) ||
+                  0;
+                const oppSets =
+                  Number(isHome ? single.awaySetCount : single.homeSetCount) ||
+                  0;
+
+                // Weergave altijd vanuit de thuisspeler
+                const homeIdx = single.homePlayerIndex;
+                const awayIdx = single.awayPlayerIndex;
+                const score = `${single.homeSetCount}-${single.awaySetCount}`;
+
+                let scoreClasses = [];
+                if (ourSets > 0 || oppSets > 0) {
+                  // Kleur blijft vanuit Zandvoorde
+                  const isWin = ourSets > oppSets;
+                  scoreClasses.push(isWin ? "score-win" : "score-loss");
+
+                  if (isHighlighted) {
+                    scoreClasses.push(
+                      isWin ? "score-highlight-win" : "score-highlight-loss",
+                    );
+                  }
+                }
+
+                colRowsHtml += `
+  <div class="singles-row-item">
+    <span class="tabular-nums fw-bold" style="font-size:1em;">${homeIdx}-${awayIdx}</span>
+    <span class="text-right tabular-nums ws-nowrap ${scoreClasses.join(" ")}" style="font-size:1em;">${score}</span>
+  </div>`;
+              }
+            }
+            singlesColumnsHtml += `<div class="singles-col">${colRowsHtml}</div>`;
+          }
+
+          const part2Html = `
+            <div class="part-singles" style="font-size:1em;font-weight:600;display:flex;align-items:center;">
+              <div class="singles-4col-container">${singlesColumnsHtml}</div>
+            </div>`;
+
+          const part3Html = `
+            <div class="part-merged-ranking">
+              ${
+                rankingData
+                  ? buildMergedRankingHtml(
+                      rankingData.entries,
+                      letter,
+                      rankingData.divisionName,
+                      match,
+                      matchData?.upcomingMatches,
+                    )
+                  : `<div class="pt-4 color-muted text-center" style="font-size:0.75em;">Klassement laden...</div>`
+              }
+            </div>`;
+
+          return `
+            <div class="view-unified">
+              ${part1Html}
+              ${part2Html}
+              ${part3Html}
+            </div>`;
+        }
+
+        function renderTeamCell(letter) {
+          const target = getTeamElement(letter);
+          if (!target) return;
+
+          const matchData = lastMatchesDataByLetter[letter];
+          const rankingData = lastRankingByLetter[letter];
+          const match = matchData?.currentMatch;
+
+          target.innerHTML = renderUnifiedView(
+            letter,
+            match,
+            matchData,
+            rankingData,
+          );
+        }
+
+        function renderBlockError(letter, message) {
+          const target = getTeamElement(letter);
+          if (!target) return;
+          target.innerHTML = `<div style="text-align:center;font-size:0.8em;padding:6px;color:#b00020;">${message}</div>`;
+        }
+
+        async function loadStandings() {
+          try {
+            const teams = await fetchTeamsForClubCached("WVL109");
+
+            const results = await Promise.all(
+              TEAMS_LIST.map(async (letter) => {
+                const team =
+                  teams.find(
+                    (entry) =>
+                      entry.teamName === letter &&
+                      entry.divisionCategory === "37",
+                  ) || teams.find((entry) => entry.teamName === letter);
+
+                if (!team?.divisionId) return { letter, status: "missing" };
+
+                try {
+                  const ranking = await fetchDivisionRanking(team.divisionId);
+                  return {
+                    letter,
+                    status: "ok",
+                    divisionName: team.divisionName,
+                    ranking,
+                  };
+                } catch (error) {
+                  return {
+                    letter,
+                    status: "error",
+                    errorMessage: getErrorMessage(error),
+                  };
+                }
+              }),
+            );
+
+            for (const result of results) {
+              if (result.status === "missing") {
+                renderBlockError(
+                  result.letter,
+                  `Team ${result.letter} niet gevonden`,
+                );
+                continue;
+              }
+              if (result.status === "error") {
+                renderBlockError(
+                  result.letter,
+                  `Fout ${result.letter}: ${result.errorMessage || "onbekend"}`,
+                );
+                continue;
+              }
+
+              updateStandingsHighlightState(result.letter, result.ranking);
+              lastRankingByLetter[result.letter] = {
+                entries: result.ranking,
+                divisionName: result.divisionName,
+              };
+              renderTeamCell(result.letter);
+            }
+          } catch (error) {
+            console.error("Fout bij laden van klassement:", error);
+          }
+        }
+
+        async function loadMatches() {
+          try {
+            const teams = await fetchTeamsForClubCached("WVL109");
+            const dateWindow = getMatchFetchDateWindow();
+
+            const results = await Promise.all(
+              TEAMS_LIST.map(async (letter) => {
+                const team =
+                  teams.find(
+                    (entry) =>
+                      entry.teamName === letter &&
+                      entry.divisionCategory === "37",
+                  ) || teams.find((entry) => entry.teamName === letter);
+
+                if (!team?.divisionId) return { letter, status: "missing" };
+
+                try {
+                  const matches = await fetchDivisionMatches(
+                    team.divisionId,
+                    true,
+                    dateWindow.from,
+                    dateWindow.to,
+                  );
+                  const upcomingMatches = getUpcomingWeekMatches(matches);
+                  const nextTeamMatchdays = getNextTeamMatchdays(
+                    matches,
+                    letter,
+                    4,
+                  );
+                  const currentMatch = getCurrentTeamMatch(matches, letter);
+
+                  return {
+                    letter,
+                    status: "ok",
+                    currentMatch,
+                    upcomingMatches,
+                    nextTeamMatchdays,
+                  };
+                } catch (error) {
+                  return {
+                    letter,
+                    status: "error",
+                    errorMessage: getErrorMessage(error),
+                  };
+                }
+              }),
+            );
+
+            for (const result of results) {
+              if (result.status === "missing") {
+                renderBlockError(
+                  result.letter,
+                  `Team ${result.letter} niet gevonden`,
+                );
+                continue;
+              }
+              if (result.status === "error") {
+                renderBlockError(
+                  result.letter,
+                  `Fout ${result.letter}: ${result.errorMessage || "onbekend"}`,
+                );
+                continue;
+              }
+
+              lastMatchesDataByLetter[result.letter] = result;
+              updateSinglesHighlightState(result.letter, result.currentMatch);
+              updateMatchScoresHighlightState(
+                result.letter,
+                result.currentMatch,
+                result.upcomingMatches,
+              );
+
+              const opponentName = getOpponentTeamName(
+                result.currentMatch,
+                result.letter,
+              );
+              currentOpponentByLetter[result.letter] = opponentName;
+
+              renderTeamCell(result.letter);
+            }
+          } catch (error) {
+            console.error("Fout bij laden van matchen:", error);
+          }
+        }
+
+        async function refreshStandings() {
+          if (standingsRefreshInProgress) return;
+          standingsRefreshInProgress = true;
+          try {
+            await loadStandings();
+          } finally {
+            standingsRefreshInProgress = false;
+          }
+        }
+
+        async function refreshMatches() {
+          if (matchesRefreshInProgress) return;
+          matchesRefreshInProgress = true;
+          try {
+            await loadMatches();
+          } finally {
+            matchesRefreshInProgress = false;
+          }
+        }
+
+        async function refreshStandingsAndReschedule() {
+          await refreshStandings();
+          standingsRefreshTimeoutId = setTimeout(
+            refreshStandingsAndReschedule,
+            getRefreshIntervalMs(),
+          );
+        }
+
+        function updateLayoutScale() {
+          const rect = rootEl?.getBoundingClientRect();
+          const width = Math.max(rect?.width || window.innerWidth || 0, 1);
+          const height = Math.max(rect?.height || window.innerHeight || 0, 1);
+
+          const rawScale = Math.min(
+            width / DESIGN_WIDTH,
+            height / DESIGN_HEIGHT,
+          );
+          const scale = Math.max(
+            MIN_LAYOUT_SCALE,
+            Math.min(MAX_LAYOUT_SCALE, rawScale),
+          );
+
+          rootEl?.style.setProperty("--layout-scale", scale.toFixed(3));
+        }
+
+        async function requestFullscreenSafe() {
+          if (document.fullscreenElement) return true;
+          if (!rootEl?.requestFullscreen) return false;
+          try {
+            await rootEl.requestFullscreen({ navigationUI: "hide" });
+            return true;
+          } catch {
+            return false;
+          }
+        }
+
+        function installFullscreenFallbackListeners() {
+          const tryFromGesture = async () => {
+            const ok = await requestFullscreenSafe();
+            if (ok) {
+              document.removeEventListener("click", tryFromGesture);
+              document.removeEventListener("keydown", tryFromGesture);
+              document.removeEventListener("touchstart", tryFromGesture);
+            }
+          };
+          document.addEventListener("click", tryFromGesture);
+          document.addEventListener("keydown", tryFromGesture);
+          document.addEventListener("touchstart", tryFromGesture);
+        }
+
+        async function tryAutoFullscreenOnce() {
+          if (autoFullscreenAttempted) return;
+          autoFullscreenAttempted = true;
+          const ok = await requestFullscreenSafe();
+          if (!ok) installFullscreenFallbackListeners();
+        }
+
+        function toggleFullscreen() {
+          if (!document.fullscreenElement) {
+            requestFullscreenSafe();
+          } else {
+            document.exitFullscreen();
+          }
+        }
+
+        function updateFullscreenIcon() {
+          if (document.fullscreenElement) {
+            fullscreenIcon.style.display = "none";
+            exitFullscreenIcon.style.display = "block";
+          } else {
+            fullscreenIcon.style.display = "block";
+            exitFullscreenIcon.style.display = "none";
+          }
+          updateLayoutScale();
+        }
+
+        window.addEventListener("DOMContentLoaded", () => {
+          loadStandingsHighlightState();
+
+          if (standingsRefreshTimeoutId)
+            clearTimeout(standingsRefreshTimeoutId);
+          if (matchesRefreshIntervalId) clearInterval(matchesRefreshIntervalId);
+
+          refreshStandingsAndReschedule();
+          refreshMatches();
+          matchesRefreshIntervalId = setInterval(
+            refreshMatches,
+            MATCHES_POLL_INTERVAL_MS,
+          );
+        });
+
+        fullscreenBtn?.addEventListener("click", toggleFullscreen);
+        document.addEventListener("fullscreenchange", updateFullscreenIcon);
+        window.addEventListener("resize", updateLayoutScale);
+        window.addEventListener("orientationchange", updateLayoutScale);
+        window.addEventListener("load", tryAutoFullscreenOnce);
+        window.addEventListener("load", updateLayoutScale);
+        updateFullscreenIcon();
+      </script>
+    </div>
+  </body>
+</html>

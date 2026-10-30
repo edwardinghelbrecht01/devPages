@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Quiz Scoreboard & Positieverloop</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f4f6f8;
+        color: #333;
+      }
+      h1,
+      h2 {
+        margin-top: 0;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: #fff;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .table-container {
+        overflow-x: auto;
+        max-height: 520px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 6px 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f1f3f5;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+      .sticky-left-1 {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 3;
+      }
+      .sticky-left-2 {
+        position: sticky;
+        left: 38px;
+        background-color: #fff;
+        z-index: 3;
+        text-align: left;
+      }
+      th.sticky-left-1,
+      th.sticky-left-2 {
+        background-color: #f1f3f5;
+        z-index: 4;
+      }
+      tfoot td {
+        position: sticky;
+        bottom: 0;
+        background-color: #e9ecef;
+        font-weight: bold;
+        z-index: 2;
+      }
+      tfoot td.sticky-left-1,
+      tfoot td.sticky-left-2 {
+        background-color: #e9ecef;
+        z-index: 4;
+      }
+      .chart-container {
+        position: relative;
+        height: 480px;
+        width: 100%;
+      }
+      .ranking-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      #login-overlay {
+        position: fixed;
+        inset: 0;
+        background: #f4f6f8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .login-box {
+        background: #fff;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        text-align: center;
+        width: 280px;
+      }
+      .login-box input {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 12px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      .login-box button {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login-overlay">
+      <div class="login-box">
+        <h3 style="margin-top: 0">Toegang Scorebord</h3>
+        <input type="password" id="pass-input" placeholder="Wachtwoord" />
+        <button onclick="checkPass()">Inloggen</button>
+        <p
+          id="pass-err"
+          style="color: red; font-size: 12px; margin: 8px 0 0; display: none"
+        >
+          Verkeerd wachtwoord!
+        </p>
+      </div>
+    </div>
+
+    <h1>Quiz Scoreboard Manager</h1>
+
+    <div class="card">
+      <h2>Scorematrix (Alle Scores per Ronde)</h2>
+      <div class="table-container">
+        <table id="matrixTable">
+          <thead>
+            <tr id="matrixHeader"></tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr id="matrixFooter"></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ranking-header-bar">
+        <h2 style="margin: 0">Rangschikking</h2>
+        <button id="toggleOrderBtn" onclick="toggleRankingOrder()">
+          Volgorde: Laatste → Eerste
+        </button>
+      </div>
+      <div class="table-container">
+        <table id="rankingTable">
+          <thead>
+            <tr>
+              <th style="width: 60px">Plaats</th>
+              <th style="width: 60px">#</th>
+              <th style="text-align: left">Team</th>
+              <th>Totaalscore</th>
+              <th>Schifting (Verschil)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Positieverloop per Ronde (Plaats 1 bovenaan)</h2>
+      <div class="chart-container">
+        <canvas id="rankChart"></canvas>
+      </div>
+    </div>
+
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyDlhxm2-9R7111muITqr6-m9AAytIL78B4",
+        authDomain: "quizttcz.firebaseapp.com",
+        databaseURL:
+          "https://quizttcz-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "quizttcz",
+        storageBucket: "quizttcz.firebasestorage.app",
+        messagingSenderId: "682195896202",
+        appId: "1:682195896202:web:e6074599695f1f4516ea73",
+      };
+
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      let rounds = [
+        "Autos",
+        "Dieren",
+        "T1",
+        "Chemie",
+        "Ketting",
+        "T2",
+        "Bier",
+        "Kledij",
+        "T3",
+        "Italië",
+        "Vrouwen",
+        "T4",
+      ];
+      let teams = [];
+      let shiftTarget = 0;
+      let chartInstance = null;
+      let rankingAscending = true;
+
+      function checkPass() {
+        const val = document.getElementById("pass-input").value;
+        if (val === "dimi") {
+          document.getElementById("login-overlay").style.display = "none";
+          sessionStorage.setItem("quiz_auth", "true");
+        } else {
+          document.getElementById("pass-err").style.display = "block";
+        }
+      }
+
+      if (sessionStorage.getItem("quiz_auth") === "true") {
+        document.getElementById("login-overlay").style.display = "none";
+      }
+
+      document
+        .getElementById("pass-input")
+        .addEventListener("keydown", function (e) {
+          if (e.key === "Enter") checkPass();
+        });
+
+      function calcTotal(scores) {
+        return scores.reduce((sum, val) => sum + (val || 0), 0);
+      }
+
+      function calculateRankingsPerRound() {
+        const numRounds = rounds.length;
+        const rankHistory = {};
+
+        teams.forEach((t) => {
+          rankHistory[t.id] = [];
+        });
+
+        for (let r = 0; r < numRounds; r++) {
+          const roundSnap = teams.map((t) => {
+            const cumScore = t.scores
+              .slice(0, r + 1)
+              .reduce((acc, s) => acc + (s || 0), 0);
+            const diff = Math.abs((t.shift || 0) - shiftTarget);
+            return { id: t.id, score: cumScore, diff: diff };
+          });
+
+          roundSnap.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.diff - b.diff;
+          });
+
+          roundSnap.forEach((item, pos) => {
+            rankHistory[item.id].push(pos + 1);
+          });
+        }
+
+        return rankHistory;
+      }
+
+      function renderMatrix() {
+        const thead = document.getElementById("matrixHeader");
+        const tbody = document.querySelector("#matrixTable tbody");
+        const tfoot = document.getElementById("matrixFooter");
+
+        let headerHtml = `
+        <th class="sticky-left-1">#</th>
+        <th class="sticky-left-2">Groep / Team</th>
+      `;
+        rounds.forEach((r) => {
+          headerHtml += `<th>${r}</th>`;
+        });
+        headerHtml += `
+        <th>Totaal</th>
+        <th>Schifting</th>
+      `;
+        thead.innerHTML = headerHtml;
+
+        tbody.innerHTML = "";
+        teams.forEach((t) => {
+          const tr = document.createElement("tr");
+          const total = calcTotal(t.scores);
+
+          let rowHtml = `
+          <td class="sticky-left-1">${t.id}</td>
+          <td class="sticky-left-2">${t.name}</td>
+        `;
+
+          rounds.forEach((_, rIdx) => {
+            const val = t.scores[rIdx] !== undefined ? t.scores[rIdx] : 0;
+            rowHtml += `<td>${val}</td>`;
+          });
+
+          rowHtml += `
+          <td><strong>${total.toFixed(1)}</strong></td>
+          <td>${t.shift || 0}</td>
+        `;
+          tr.innerHTML = rowHtml;
+          tbody.appendChild(tr);
+        });
+
+        if (teams.length > 0) {
+          let footerHtml = `<td class="sticky-left-1"></td><td class="sticky-left-2">Gemiddelde</td>`;
+          rounds.forEach((_, rIdx) => {
+            const avg =
+              teams.reduce((acc, t) => acc + (t.scores[rIdx] || 0), 0) /
+              teams.length;
+            footerHtml += `<td>${avg.toFixed(1)}</td>`;
+          });
+          const totalAvg =
+            teams.reduce((acc, t) => acc + calcTotal(t.scores), 0) /
+            teams.length;
+          footerHtml += `<td>${totalAvg.toFixed(1)}</td><td>-</td>`;
+          tfoot.innerHTML = footerHtml;
+        } else {
+          tfoot.innerHTML = "";
+        }
+      }
+
+      function toggleRankingOrder() {
+        rankingAscending = !rankingAscending;
+        const btn = document.getElementById("toggleOrderBtn");
+        btn.textContent = rankingAscending
+          ? "Volgorde: Laatste → Eerste"
+          : "Volgorde: Eerste → Laatste";
+        renderRanking();
+      }
+
+      function renderRanking() {
+        const tbody = document.querySelector("#rankingTable tbody");
+        tbody.innerHTML = "";
+
+        const ranked = [...teams]
+          .sort((a, b) => {
+            const diffScore = calcTotal(b.scores) - calcTotal(a.scores);
+            if (diffScore !== 0) return diffScore;
+            const diffA = Math.abs((a.shift || 0) - shiftTarget);
+            const diffB = Math.abs((b.shift || 0) - shiftTarget);
+            return diffA - diffB;
+          })
+          .map((t, idx) => ({ ...t, rank: idx + 1 }));
+
+        if (rankingAscending) {
+          ranked.reverse();
+        }
+
+        ranked.forEach((t) => {
+          const tr = document.createElement("tr");
+          const diff = Math.abs((t.shift || 0) - shiftTarget);
+          tr.innerHTML = `
+          <td><strong>${t.rank}</strong></td>
+          <td>#${t.id}</td>
+          <td style="text-align: left;">${t.name}</td>
+          <td><strong>${calcTotal(t.scores).toFixed(1)}</strong></td>
+          <td>${t.shift || 0} <span style="font-size: 11px; color: #666;">(Δ ${diff})</span></td>
+        `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderChart() {
+        const ctx = document.getElementById("rankChart").getContext("2d");
+        const palette = [
+          "#007bff",
+          "#28a745",
+          "#dc3545",
+          "#ffc107",
+          "#17a2b8",
+          "#6610f2",
+          "#fd7e14",
+          "#20c997",
+          "#e83e8c",
+          "#6c757d",
+          "#343a40",
+          "#00b4d8",
+          "#7b2cbf",
+          "#ff006e",
+          "#38b000",
+          "#8338ec",
+          "#3a86ff",
+          "#fb5607",
+          "#588157",
+          "#d62828",
+          "#023e8a",
+          "#f77f00",
+          "#4a4e69",
+          "#2a9d8f",
+          "#e76f51",
+        ];
+
+        const rankHistory = calculateRankingsPerRound();
+
+        const datasets = teams.map((t, idx) => ({
+          label: `#${t.id} ${t.name}`,
+          data: rankHistory[t.id],
+          borderColor: palette[idx % palette.length],
+          backgroundColor: palette[idx % palette.length],
+          fill: false,
+          tension: 0.25,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+        }));
+
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+
+        const totalTeams = Math.max(teams.length, 1);
+
+        chartInstance = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: rounds,
+            datasets: datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: "nearest",
+              intersect: false,
+            },
+            scales: {
+              y: {
+                reverse: true,
+                min: 0.5,
+                max: totalTeams + 0.5,
+                ticks: {
+                  stepSize: 1,
+                  callback: function (val) {
+                    return Number.isInteger(val) &&
+                      val >= 1 &&
+                      val <= totalTeams
+                      ? "#" + val
+                      : "";
+                  },
+                },
+                title: {
+                  display: true,
+                  text: "Plaats in Rangschikking",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    return `${ctx.dataset.label}: Plaats ${ctx.parsed.y}`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function refreshAll() {
+        renderMatrix();
+        renderRanking();
+        renderChart();
+      }
+
+      db.ref("quiz_data").on("value", (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          rounds = data.rounds || rounds;
+          teams = data.teams || [];
+          shiftTarget = data.shift_target !== undefined ? data.shift_target : 0;
+          refreshAll();
+        }
+      });
+    </script>
+  </body>
+</html>
